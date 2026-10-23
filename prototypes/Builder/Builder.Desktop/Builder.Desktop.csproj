@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF>
+    <AssemblyName>Builder</AssemblyName><ApplicationManifest>app.manifest</ApplicationManifest>
+    <Product>3D BuilderCrap</Product><AssemblyTitle>3D BuilderCrap</AssemblyTitle>
+    <Description>Approachable 3D modeling for 3D printing.</Description>
+    <ApplicationIcon>Assets/BuilderCrap.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Builder.Core/Builder.Core.csproj" /><ProjectReference Include="../Builder.Windows.Text/Builder.Windows.Text.csproj"/><ProjectReference Include="../Builder.Windows.Images/Builder.Windows.Images.csproj"/><ProjectReference Include="../Builder.Mcp/Builder.Mcp.csproj"/><ProjectReference Include="../Builder.Mcp.Server/Builder.Mcp.Server.csproj" ReferenceOutputAssembly="false"/></ItemGroup>
+  <Target Name="CopyMcpLauncher" AfterTargets="Build">
+    <ItemGroup><McpLauncher Include="../Builder.Mcp.Server/bin/$(Configuration)/net10.0-windows/$(RuntimeIdentifier)/Builder.Mcp.Server.exe;../Builder.Mcp.Server/bin/$(Configuration)/net10.0-windows/$(RuntimeIdentifier)/Builder.Mcp.Server.dll;../Builder.Mcp.Server/bin/$(Configuration)/net10.0-windows/$(RuntimeIdentifier)/Builder.Mcp.Server.deps.json;../Builder.Mcp.Server/bin/$(Configuration)/net10.0-windows/$(RuntimeIdentifier)/Builder.Mcp.Server.runtimeconfig.json"/></ItemGroup>
+    <Copy SourceFiles="@(McpLauncher)" DestinationFolder="$(OutDir)"/>
+  </Target>
+  <ItemGroup>
+    <Compile Include="../Shared/InstallationLease.cs" Link="Hosting/InstallationLease.cs"/>
+    <Content Include="../Help/**/*" Link="Help/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
+    <Content Include="../THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
+    <EmbeddedResource Include="Assets/Icons/*.svg" LogicalName="Builder.Icons.%(Filename).svg"/>
+    <Resource Include="Assets/BuilderCrap.ico"/>
+  </ItemGroup>
+</Project>

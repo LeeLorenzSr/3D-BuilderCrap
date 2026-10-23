@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0-windows</TargetFramework></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Builder.Mcp/Builder.Mcp.csproj"/><ProjectReference Include="../Builder.Windows.Text/Builder.Windows.Text.csproj"/><ProjectReference Include="../Builder.Windows.Images/Builder.Windows.Images.csproj"/></ItemGroup>
+  <ItemGroup><Compile Include="../Shared/InstallationLease.cs" Link="Hosting/InstallationLease.cs"/></ItemGroup>
+</Project>

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF>
+    <BuilderBinaryDirectory Condition="'$(BuilderBinaryDirectory)' == ''">$(MSBuildThisFileDirectory)../../../.local/evidence/latency-trace-20261019/baseline-binaries</BuilderBinaryDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="LatencyTraceProgram.cs" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="TracePhases.cs" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="Builder.Desktop.LatencyTrace.csproj" CopyToOutputDirectory="PreserveNewest"/>
+    <Reference Include="Builder"><HintPath>$(BuilderBinaryDirectory)/Builder.dll</HintPath></Reference>
+    <Reference Include="Builder.Core"><HintPath>$(BuilderBinaryDirectory)/Builder.Core.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

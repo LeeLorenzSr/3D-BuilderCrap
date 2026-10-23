@@ -1,0 +1,13 @@
+3D BuilderCrap v1 — Windows x64
+
+This per-user installation includes the .NET Desktop runtime, geometry worker, MCP launcher, offline help and third-party notices. No administrator access, separate runtime, Microsoft 3D Builder installation or LLM is required. Windows 11 x64 is the supported package target.
+
+Save and close this installation's desktop windows and MCP clients before updating or uninstalling. Setup never closes them for you. To update or repair, run the same or a newer installer. Older versions are refused. Keep models outside the installation directory.
+
+Select "Create a desktop shortcut" on the Additional shortcuts page if you want a desktop launcher. It is optional and unchecked on a fresh install. Updates remember your choice; uninstall removes the installer-created shortcut.
+
+Uninstall removes installed application files and shortcuts. It keeps saved models, files you added, recent-file settings, View choices and recovery copies. These local settings/recovery files are in %LOCALAPPDATA%\3D BuilderCrap. Reinstall to use them again.
+
+MCP access is off at launch. To attach a trusted client: View → MCP access → Enable access → Copy config. Clients have your model/image file permissions, with no folder sandbox. There is no network listener and Setup never changes your MCP client configuration.
+
+Open Help in the app (F1) or Help and recovery in the Start menu. The offline guide documents formats, limits, recovery and headless MCP configuration. This local v1 installer is unsigned; no trusted certificate or security exception is installed. Accessibility and per-monitor DPI certification are not claimed.

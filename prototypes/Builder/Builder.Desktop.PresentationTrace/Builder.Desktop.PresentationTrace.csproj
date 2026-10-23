@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF>
+    <BuilderBinaryDirectory Condition="'$(BuilderBinaryDirectory)' == ''">$(MSBuildThisFileDirectory)../../../.local/evidence/input-display-20261019/baseline-binaries</BuilderBinaryDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Builder"><HintPath>$(BuilderBinaryDirectory)/Builder.dll</HintPath></Reference>
+    <Reference Include="Builder.Core"><HintPath>$(BuilderBinaryDirectory)/Builder.Core.dll</HintPath></Reference>
+    <None Include="CaptureObserver.cpp" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="Build.ps1" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="README.md" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="PresentationTraceProgram.cs" CopyToOutputDirectory="PreserveNewest"/>
+  </ItemGroup>
+</Project>

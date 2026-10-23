@@ -1,0 +1,5 @@
+# Independent fixture reader, isolated from system Python.
+trimesh==5.1.1
+numpy==2.4.2
+networkx==3.7
+lxml==6.1.3

@@ -1,0 +1,357 @@
+[
+  {
+    "key": "app-mark",
+    "label": "3D BuilderCrap",
+    "group": "Identity"
+  },
+  {
+    "key": "open",
+    "label": "Open",
+    "group": "Files and history"
+  },
+  {
+    "key": "insert",
+    "label": "Insert",
+    "group": "Files and history"
+  },
+  {
+    "key": "save",
+    "label": "Save",
+    "group": "Files and history"
+  },
+  {
+    "key": "save-as",
+    "label": "Save as",
+    "group": "Files and history"
+  },
+  {
+    "key": "export",
+    "label": "Export",
+    "group": "Files and history"
+  },
+  {
+    "key": "export-selection",
+    "label": "Export selection",
+    "group": "Files and history"
+  },
+  {
+    "key": "undo",
+    "label": "Undo",
+    "group": "Files and history"
+  },
+  {
+    "key": "redo",
+    "label": "Redo",
+    "group": "Files and history"
+  },
+  {
+    "key": "cube",
+    "label": "Cube",
+    "group": "Shapes"
+  },
+  {
+    "key": "cylinder",
+    "label": "Cylinder",
+    "group": "Shapes"
+  },
+  {
+    "key": "pyramid",
+    "label": "Pyramid",
+    "group": "Shapes"
+  },
+  {
+    "key": "cone",
+    "label": "Cone",
+    "group": "Shapes"
+  },
+  {
+    "key": "sphere",
+    "label": "Sphere",
+    "group": "Shapes"
+  },
+  {
+    "key": "hexagon",
+    "label": "Hexagon",
+    "group": "Shapes"
+  },
+  {
+    "key": "wedge",
+    "label": "Wedge",
+    "group": "Shapes"
+  },
+  {
+    "key": "torus",
+    "label": "Torus",
+    "group": "Shapes"
+  },
+  {
+    "key": "tetrahedron",
+    "label": "Tetrahedron",
+    "group": "Shapes"
+  },
+  {
+    "key": "text",
+    "label": "Text",
+    "group": "Shapes"
+  },
+  {
+    "key": "image-relief",
+    "label": "Image relief",
+    "group": "Shapes"
+  },
+  {
+    "key": "move",
+    "label": "Move",
+    "group": "Objects"
+  },
+  {
+    "key": "rotate",
+    "label": "Rotate",
+    "group": "Objects"
+  },
+  {
+    "key": "scale",
+    "label": "Scale",
+    "group": "Objects"
+  },
+  {
+    "key": "bed",
+    "label": "Bed",
+    "group": "Objects"
+  },
+  {
+    "key": "duplicate",
+    "label": "Duplicate",
+    "group": "Objects"
+  },
+  {
+    "key": "delete",
+    "label": "Delete",
+    "group": "Objects"
+  },
+  {
+    "key": "group",
+    "label": "Group",
+    "group": "Objects"
+  },
+  {
+    "key": "ungroup",
+    "label": "Ungroup",
+    "group": "Objects"
+  },
+  {
+    "key": "edit-members",
+    "label": "Edit members",
+    "group": "Objects"
+  },
+  {
+    "key": "align",
+    "label": "Align",
+    "group": "Objects"
+  },
+  {
+    "key": "mirror",
+    "label": "Mirror",
+    "group": "Objects"
+  },
+  {
+    "key": "measure",
+    "label": "Measure",
+    "group": "Objects"
+  },
+  {
+    "key": "rename",
+    "label": "Rename",
+    "group": "Objects"
+  },
+  {
+    "key": "select-all",
+    "label": "Select all",
+    "group": "Objects"
+  },
+  {
+    "key": "clear-selection",
+    "label": "Clear selection",
+    "group": "Objects"
+  },
+  {
+    "key": "split",
+    "label": "Split",
+    "group": "Mesh editing"
+  },
+  {
+    "key": "combine",
+    "label": "Combine",
+    "group": "Mesh editing"
+  },
+  {
+    "key": "union",
+    "label": "Union",
+    "group": "Mesh editing"
+  },
+  {
+    "key": "subtract",
+    "label": "Subtract",
+    "group": "Mesh editing"
+  },
+  {
+    "key": "intersect",
+    "label": "Intersect",
+    "group": "Mesh editing"
+  },
+  {
+    "key": "repair",
+    "label": "Repair",
+    "group": "Mesh editing"
+  },
+  {
+    "key": "hollow",
+    "label": "Hollow",
+    "group": "Mesh editing"
+  },
+  {
+    "key": "simplify",
+    "label": "Simplify",
+    "group": "Mesh editing"
+  },
+  {
+    "key": "smooth",
+    "label": "Smooth",
+    "group": "Mesh editing"
+  },
+  {
+    "key": "emboss",
+    "label": "Emboss",
+    "group": "Mesh editing"
+  },
+  {
+    "key": "separate",
+    "label": "Separate",
+    "group": "Mesh editing"
+  },
+  {
+    "key": "extrude-down",
+    "label": "Extrude down",
+    "group": "Mesh editing"
+  },
+  {
+    "key": "view-isometric",
+    "label": "View isometric",
+    "group": "View"
+  },
+  {
+    "key": "view-top",
+    "label": "View top",
+    "group": "View"
+  },
+  {
+    "key": "view-front",
+    "label": "View front",
+    "group": "View"
+  },
+  {
+    "key": "view-right",
+    "label": "View right",
+    "group": "View"
+  },
+  {
+    "key": "fit-selection",
+    "label": "Fit selection",
+    "group": "View"
+  },
+  {
+    "key": "fit-scene",
+    "label": "Fit scene",
+    "group": "View"
+  },
+  {
+    "key": "wireframe",
+    "label": "Wireframe",
+    "group": "View"
+  },
+  {
+    "key": "grid",
+    "label": "Grid",
+    "group": "View"
+  },
+  {
+    "key": "preview",
+    "label": "Preview",
+    "group": "Review and status"
+  },
+  {
+    "key": "apply",
+    "label": "Apply",
+    "group": "Review and status"
+  },
+  {
+    "key": "cancel",
+    "label": "Cancel",
+    "group": "Review and status"
+  },
+  {
+    "key": "add",
+    "label": "Add",
+    "group": "Review and status"
+  },
+  {
+    "key": "reset",
+    "label": "Reset",
+    "group": "Review and status"
+  },
+  {
+    "key": "center",
+    "label": "Center",
+    "group": "Review and status"
+  },
+  {
+    "key": "warning",
+    "label": "Warning",
+    "group": "Review and status"
+  },
+  {
+    "key": "info",
+    "label": "Info",
+    "group": "Review and status"
+  },
+  {
+    "key": "chevron-right",
+    "label": "Chevron right",
+    "group": "Review and status"
+  },
+  {
+    "key": "chevron-down",
+    "label": "Chevron down",
+    "group": "Review and status"
+  },
+  {
+    "key": "lock",
+    "label": "Lock",
+    "group": "Review and status"
+  },
+  {
+    "key": "unlock",
+    "label": "Unlock",
+    "group": "Review and status"
+  },
+  {
+    "key": "paint",
+    "label": "Paint",
+    "group": "Appearance (reserved for later tools)"
+  },
+  {
+    "key": "material",
+    "label": "Material",
+    "group": "Appearance (reserved for later tools)"
+  },
+  {
+    "key": "color-picker",
+    "label": "Color picker",
+    "group": "Appearance (reserved for later tools)"
+  },
+  {
+    "key": "texture",
+    "label": "Texture",
+    "group": "Appearance (reserved for later tools)"
+  }
+]

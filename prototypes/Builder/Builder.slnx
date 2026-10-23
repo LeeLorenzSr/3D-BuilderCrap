@@ -1,0 +1,11 @@
+<Solution>
+  <Project Path="Builder.Checks/Builder.Checks.csproj" />
+  <Project Path="Builder.Core/Builder.Core.csproj" />
+  <Project Path="Builder.Mcp/Builder.Mcp.csproj" />
+  <Project Path="Builder.Mcp.Server/Builder.Mcp.Server.csproj" />
+  <Project Path="Builder.Mcp.Checks/Builder.Mcp.Checks.csproj" />
+  <Project Path="Builder.Windows.Text/Builder.Windows.Text.csproj" />
+  <Project Path="Builder.Windows.Images/Builder.Windows.Images.csproj" />
+  <Project Path="Builder.Desktop/Builder.Desktop.csproj" />
+  <Project Path="Builder.Desktop.Checks/Builder.Desktop.Checks.csproj" />
+</Solution>

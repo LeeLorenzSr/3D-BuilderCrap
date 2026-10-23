@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "provenance": "Original bounded invalid inputs from scripts/generate_failure_fixtures.py",
+  "cases": [
+    {
+      "file": "truncated-cube.stl",
+      "bytes": 84,
+      "sha256": "3d8d1ef6c15d87a39a14738d0128342a4225d8bfa1284ee008bc7ccbfb9e8cd1",
+      "purpose": "84-byte binary STL header declares 12 triangles but contains no triangle records."
+    },
+    {
+      "file": "not-a-package.3mf",
+      "bytes": 42,
+      "sha256": "f9307f28bb59d17dbb62ea99ffbcbc88ed02498a4c95faf05e4de4bab19c96c2",
+      "purpose": "Plain text with a 3MF extension, not an OPC/ZIP package."
+    }
+  ]
+}

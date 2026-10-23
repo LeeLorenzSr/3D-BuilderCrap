@@ -1,0 +1,50 @@
+# Local dependencies, installers, captures and verification output
+/.local/
+/artifacts/
+/publish/
+/exports/
+/models/
+/references/
+
+# Build and IDE state
+**/bin/
+**/obj/
+**/.vs/
+**/node_modules/
+**/__pycache__/
+*.py[cod]
+*.user
+*.suo
+*.cache
+*.log
+*.binlog
+*.pdb
+*.dmp
+*.exe
+*.dll
+*.msi
+*.msix
+*.appx
+*.appxbundle
+*.winmd
+*.etl
+.idea/
+.vscode/
+.venv/
+venv/
+
+# Credentials and private machine configuration
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.key
+*.pem
+appsettings.Local.json
+NuGet.Config.local
+
+# Windows/macOS metadata
+Thumbs.db
+Desktop.ini
+.DS_Store
