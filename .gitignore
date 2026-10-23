@@ -6,6 +6,9 @@
 /models/
 /references/
 
+# Generated remnants of checkouts from before the maintained src layout
+/prototypes/
+
 # Build and IDE state
 **/bin/
 **/obj/

@@ -17,6 +17,8 @@
 
 The existing namespace/project names and `Builder.exe` filename are internal identifiers; the product is 3D BuilderCrap.
 
+The maintained source root is `src/BuilderCrap`. Version 1.0.2 relocates the source and updates build/check paths; it does not change document schemas, session semantics, installed filenames, the installer AppId or MCP tool names. Fresh native builds use `.local/geometry-build/BuilderCrap` so caches from earlier layouts cannot supply an old worker.
+
 ## Edits and previews
 
 Accepted commands create undoable changes. Selection changes advance the session revision without inventing a mesh edit. Expensive work produces a private candidate tied to its input revision, selection/member scope and preview identity. Apply validates that ownership and commits one history step. Cancel discards the candidate. Invalid, failed, stale or cancelled work preserves accepted scene state.

@@ -10,7 +10,7 @@ The desktop and packaged MCP host target **Windows 11 x64**. The core library ta
 - Internet access for the first pinned Manifold fetch and NuGet restore. Neither the original 3D Builder app nor REA is needed.
 - Python 3 is optional for fixture generation and independent file inspection.
 
-The scripts use paths relative to this repository, including paths containing spaces. Keep the `prototypes/Builder` directory structure intact.
+The scripts use paths relative to this repository, including paths containing spaces. Keep the `src/BuilderCrap` directory structure intact.
 
 ## Build
 
@@ -18,8 +18,8 @@ From the repository root:
 
 ```powershell
 pwsh -NoProfile -File scripts/Build-GeometryWorker.ps1
-dotnet build prototypes/Builder/Builder.slnx
-dotnet run --no-build --project prototypes/Builder/Builder.Desktop
+dotnet build src/BuilderCrap/Builder.slnx
+dotnet run --no-build --project src/BuilderCrap/Builder.Desktop
 ```
 
 The native script locates `cmake` on PATH or through Visual Studio's `vswhere`. To select it explicitly:
@@ -28,18 +28,18 @@ The native script locates `cmake` on PATH or through Visual Studio's `vswhere`. 
 pwsh -NoProfile -File scripts/Build-GeometryWorker.ps1 -CMakePath 'C:\path\to\cmake.exe'
 ```
 
-CMake fetches the exact Manifold commit in `Builder.GeometryWorker/CMakeLists.txt` into ignored `.local/geometry-build/`. The worker, fault probe and notices are built under ignored `bin/` directories. Managed executable builds copy the worker and its licenses beside their outputs. Build native code first; a managed build alone does not create the worker.
+CMake fetches the exact Manifold commit in `Builder.GeometryWorker/CMakeLists.txt` into ignored `.local/geometry-build/BuilderCrap/`. The worker, fault probe and notices are built under ignored `bin/` directories. Managed executable builds copy the worker and its licenses beside their outputs. Build native code first; a managed build alone does not create the worker.
 
 The solution contains Core, Desktop, Windows adapters, MCP and the three check projects. The optional benchmark/performance/trace projects are retained source tools outside the normal solution; they are not required to run the editor.
 
 ## Run and check
 
-The Debug app is `prototypes/Builder/Builder.Desktop/bin/Debug/net10.0-windows/Builder.exe`. The SDK includes the runtime for development. A packaged installation includes a private runtime and does not require an SDK.
+The Debug app is `src/BuilderCrap/Builder.Desktop/bin/Debug/net10.0-windows/Builder.exe`. The SDK includes the runtime for development. A packaged installation includes a private runtime and does not require an SDK.
 
 ```powershell
 python scripts/generate_fixtures.py
 python scripts/generate_failure_fixtures.py
-dotnet run --no-build --project prototypes/Builder/Builder.Checks -- . --primitives-only
+dotnet run --no-build --project src/BuilderCrap/Builder.Checks -- . --primitives-only
 ```
 
 Open `fixtures/generated/cube-20mm.stl` in millimeters for a small sample. [More checks and fixture requirements](verification.md), [Windows packaging](windows-packaging.md), [MCP setup](mcp-access.md).

@@ -1,0 +1,85 @@
+name: Build draft Windows release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out the tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Select the pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+
+      - name: Validate the release tag and versions
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: ./scripts/Test-ReleaseVersion.ps1 -Tag $env:RELEASE_TAG
+
+      - name: Build the geometry worker
+        run: ./scripts/Build-GeometryWorker.ps1
+
+      - name: Build the application
+        run: dotnet build src/BuilderCrap/Builder.slnx
+
+      - name: Check creation and file round trips
+        run: dotnet run --no-build --project src/BuilderCrap/Builder.Checks -- . --primitives-only
+
+      - name: Check construction, history and cancellation
+        run: dotnet run --no-build --project src/BuilderCrap/Builder.Checks -- . --construction-only
+
+      - name: Install the pinned compiler on the disposable runner
+        run: |
+          $ErrorActionPreference='Stop'
+          $toolRoot=Join-Path $env:RUNNER_TEMP 'buildercrap-inno'
+          New-Item -ItemType Directory -Path $toolRoot | Out-Null
+          $installer=Join-Path $toolRoot 'innosetup-7.1.0-x64.exe'
+          Invoke-WebRequest -Uri 'https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe' -OutFile $installer
+          if((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash -cne '0362A383ED217D4C4239B5933866DD96D3EB2102737DA92F80F6057A4B40DF2F'){throw 'Compiler installer checksum mismatch.'}
+          $compilerDirectory=Join-Path $toolRoot 'compiler'
+          $setup=Start-Process -FilePath $installer -WindowStyle Hidden -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /CURRENTUSER /DIR=`"$compilerDirectory`"" -Wait -PassThru
+          if($setup.ExitCode -ne 0){throw "Compiler installation failed: $($setup.ExitCode)"}
+          "BUILDER_INNO_COMPILER=$(Join-Path $compilerDirectory 'ISCC.exe')" | Add-Content -LiteralPath $env:GITHUB_ENV
+
+      - name: Build the self-contained Windows installer
+        run: ./scripts/Build-WindowsPackage.ps1 -CompilerPath $env:BUILDER_INNO_COMPILER
+
+      - name: Assemble checksummed release assets
+        run: ./scripts/Prepare-ReleaseAssets.ps1
+
+      - name: Create an unpublished draft with all assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $ErrorActionPreference='Stop'
+          $PSNativeCommandUseErrorActionPreference=$false
+          $version=(./scripts/Test-ReleaseVersion.ps1 -Tag $env:RELEASE_TAG).Trim()
+          $existing=gh release view $env:RELEASE_TAG --json url --jq .url 2>$null
+          if($LASTEXITCODE -eq 0){Write-Output "Existing release left unchanged: $existing"; exit 0}
+          $assetDirectory=Join-Path $env:GITHUB_WORKSPACE ".local/release-assets/$version"
+          $assets=@(Get-ChildItem -LiteralPath $assetDirectory -File | ForEach-Object { $_.FullName })
+          gh release create $env:RELEASE_TAG @assets --verify-tag --draft --title "3D BuilderCrap $version" --notes-file (Join-Path $assetDirectory 'RELEASE-NOTES.md')
+          if($LASTEXITCODE -ne 0){throw 'Draft release creation failed. Inspect any existing draft before rerunning; assets were not clobbered.'}

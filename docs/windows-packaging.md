@@ -1,6 +1,6 @@
 # Windows packaging
 
-Current source version: **1.0.1**, Windows 11 x64, per-user installation. The installer contains a private .NET/Windows Desktop **10.0.12** runtime, native geometry worker, MCP launcher, offline help and third-party notices. No SDK or original Microsoft application is required on the destination machine.
+Current source version: **1.0.2**, Windows 11 x64, per-user installation. The installer contains a private .NET/Windows Desktop **10.0.12** runtime, native geometry worker, MCP launcher, offline help and third-party notices. No SDK or original Microsoft application is required on the destination machine.
 
 ## Build setup
 
@@ -8,13 +8,13 @@ First follow the [source build guide](build.md). Install **Inno Setup 7.1.0** se
 
 ```powershell
 pwsh -NoProfile -File scripts/Build-WindowsPackage.ps1 `
-  -Version 1.0.1 `
+  -Version 1.0.2 `
   -CompilerPath 'C:\path\to\Inno Setup 7\ISCC.exe'
 ```
 
-The default output is ignored `.local/packages/1.0.1/`. Choose a fresh `-OutputDirectory` to rebuild; existing packages are never overwritten. Desktop and MCP are published separately as self-contained Release/win-x64 payloads and merged only when overlapping files match. The script collects runtime/dependency licenses and creates a payload inventory and installer SHA-256 file.
+The default output is ignored `.local/packages/1.0.2/`. Choose a fresh `-OutputDirectory` to rebuild; existing packages are never overwritten. Desktop and MCP are published separately as self-contained Release/win-x64 payloads and merged only when overlapping files match. The script collects runtime/dependency licenses and creates a payload inventory and installer SHA-256 file.
 
-No installer binary or download URL is committed. Attach reviewed builds to a GitHub release separately when publishing binaries. Local packages are unsigned unless separately signed; no certificate or security exception is installed.
+Installer binaries remain outside Git. [Publishing a GitHub release](releases.md) describes the draft-release workflow and manual upload path. Local packages are unsigned unless separately signed; no certificate or security exception is installed.
 
 ## Install and shortcuts
 

@@ -1,5 +1,5 @@
 param(
-    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version='1.0.1',
+    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version,
     [string]$RuntimeVersion='10.0.12',
     [string]$OutputDirectory,
     [string]$CompilerPath,
@@ -7,6 +7,7 @@ param(
 )
 $ErrorActionPreference='Stop'
 $taskRoot=Split-Path $PSScriptRoot
+if(!$Version){$Version=(& (Join-Path $PSScriptRoot 'Test-ReleaseVersion.ps1')).Trim()}
 if(!$OutputDirectory){$OutputDirectory=Join-Path $taskRoot ".local/packages/$Version"}
 $taskOutput=[IO.Path]::GetFullPath($OutputDirectory)
 if(Test-Path -LiteralPath $taskOutput){throw 'Use a fresh package output directory. Existing packages are never overwritten.'}
@@ -14,7 +15,7 @@ if(!$CompilerPath){$CompilerPath=Join-Path $taskRoot '.local/packaging-tools/inn
 if(!(Test-Path -LiteralPath $CompilerPath)){throw 'Supply -CompilerPath for Inno Setup 7.1.0; see docs/windows-packaging.md.'}
 $taskCompilerVersion=(& $CompilerPath --version | Out-String).Trim()
 if($LASTEXITCODE -ne 0 -or $taskCompilerVersion -ne '7.1.0'){throw "Expected pinned Inno Setup 7.1.0; found $taskCompilerVersion"}
-$taskBuilder=Join-Path $taskRoot 'prototypes/Builder'
+$taskBuilder=Join-Path $taskRoot 'src/BuilderCrap'
 $taskWorker=Join-Path $taskBuilder 'Builder.GeometryWorker/bin/win-x64/Builder.GeometryWorker.exe'
 if(!(Test-Path -LiteralPath $taskWorker)){throw 'Build the native worker with scripts/Build-GeometryWorker.ps1 first.'}
 New-Item -ItemType Directory -Path $taskOutput | Out-Null

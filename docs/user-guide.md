@@ -41,4 +41,4 @@ Checkpoints, recent paths and View preferences live under `%LOCALAPPDATA%\3D Bui
 - No texture painting, curved emboss, general CAD/sketch history, automatic packing, slicing or direct printer control.
 - Native ARM64/x86, every format extension/client, accessibility conformance and per-monitor DPI certification are not claimed.
 
-The app includes an [offline guide](../prototypes/Builder/Help/index.html). Desktop mouse controls are right-drag orbit, middle-drag pan and wheel zoom. F fits the scene; Help/F1 describes commands. Text fields retain their local Undo while document history is available outside active field/tool ownership.
+The app includes an [offline guide](../src/BuilderCrap/Help/index.html). Desktop mouse controls are right-drag orbit, middle-drag pan and wheel zoom. F fits the scene; Help/F1 describes commands. Text fields retain their local Undo while document history is available outside active field/tool ownership.

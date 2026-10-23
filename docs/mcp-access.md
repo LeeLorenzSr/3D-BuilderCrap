@@ -26,7 +26,7 @@ Configure the built or installed `Builder.Mcp.Server.exe` as a stdio child proce
 }
 ```
 
-For development the launcher is under `prototypes/Builder/Builder.Mcp.Server/bin/Debug/net10.0-windows/`. Build the worker and solution first. Normal setup installs it under `%LOCALAPPDATA%\Programs\3D BuilderCrap`.
+For development the launcher is under `src/BuilderCrap/Builder.Mcp.Server/bin/Debug/net10.0-windows/`. Build the worker and solution first. Normal setup installs it under `%LOCALAPPDATA%\Programs\3D BuilderCrap`.
 
 Optional arguments `--headless --recovery ABSOLUTE_DIRECTORY` enable checkpoints. Headless mode has no autosave timer: request `builder_recovery_checkpoint` explicitly. Graceful shutdown attempts a checkpoint when configured; without a checkpoint or save, unsaved headless work ends with the process.
 

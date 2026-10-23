@@ -2,7 +2,7 @@ param()
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
 $taskRoot = Split-Path $PSScriptRoot -Parent
-$taskAssets = Join-Path $taskRoot 'prototypes/Builder/Builder.Desktop/Assets'
+$taskAssets = Join-Path $taskRoot 'src/BuilderCrap/Builder.Desktop/Assets'
 [xml]$taskSvg = Get-Content -LiteralPath (Join-Path $taskAssets 'Icons/app-mark.svg') -Raw
 $taskFrames = @()
 foreach ($taskSize in @(16,20,24,32,40,48,64,128,256)) {

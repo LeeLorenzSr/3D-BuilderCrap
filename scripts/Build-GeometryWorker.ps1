@@ -1,8 +1,8 @@
 param([string]$CMakePath)
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path $PSScriptRoot
-$taskSource = Join-Path $taskRoot 'prototypes/Builder/Builder.GeometryWorker'
-$taskBuild = Join-Path $taskRoot '.local/geometry-build'
+$taskSource = Join-Path $taskRoot 'src/BuilderCrap/Builder.GeometryWorker'
+$taskBuild = Join-Path $taskRoot '.local/geometry-build/BuilderCrap'
 if (!$CMakePath) {
     $taskCmakeCommand = Get-Command cmake -ErrorAction SilentlyContinue
     if ($taskCmakeCommand) { $CMakePath = $taskCmakeCommand.Source }

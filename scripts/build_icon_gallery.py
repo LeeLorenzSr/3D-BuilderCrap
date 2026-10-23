@@ -9,7 +9,7 @@ root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--output', type=Path, default=root / '.local/evidence/icons-branding-20261020/icon-gallery.html')
 args = parser.parse_args()
-assets = root / 'prototypes/Builder/Builder.Desktop/Assets/Icons'
+assets = root / 'src/BuilderCrap/Builder.Desktop/Assets/Icons'
 catalog = json.loads((assets / 'catalog.json').read_text(encoding='utf-8'))
 sections = {}
 for entry in catalog:

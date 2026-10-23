@@ -9,8 +9,8 @@ Build the native worker and solution first. From the repository root:
 ```powershell
 python scripts/generate_fixtures.py
 python scripts/generate_failure_fixtures.py
-dotnet run --no-build --project prototypes/Builder/Builder.Checks -- . --primitives-only
-dotnet run --no-build --project prototypes/Builder/Builder.Checks -- . --construction-only
+dotnet run --no-build --project src/BuilderCrap/Builder.Checks -- . --primitives-only
+dotnet run --no-build --project src/BuilderCrap/Builder.Checks -- . --construction-only
 ```
 
 The primitive checks cover the nine shapes, preview/Apply/Cancel, history, native Save and STL/3MF reopening. Construction checks cover split/booleans and selection ownership using the original base fixtures. These are shared Core scenarios, not native desktop-input tests. Some older modes write to fixed dated paths beneath `.local/evidence/`; use a disposable checkout or preserve existing output before rerunning.
