@@ -4,7 +4,7 @@
 
 An approachable Windows mesh editor for 3D printing, inspired by the useful workflows of Microsoft 3D Builder. Written in C#/.NET with WPF, a shared editing core, and a native geometry worker. It is an independent implementation and does not require Microsoft's application, REA, or an LLM.
 
-Current source version: **1.0.4**. The original application code, tools and artwork in this repository are available under the [MIT license](LICENSE). Dependencies retain their own [licenses and notices](THIRD-PARTY-NOTICES.md).
+**[Download 3D BuilderCrap for Windows 11 x64](https://github.com/LeeLorenzSr/3D-BuilderCrap/releases/latest)**. Current source version: **1.0.4**. The original application code, tools and artwork in this repository are available under the [MIT license](LICENSE). Dependencies retain their own [licenses and notices](THIRD-PARTY-NOTICES.md).
 
 [![A teal spur gear and an amber pinion on the 10 mm checkerboard, with the Move handles and exact position fields visible.](docs/screenshots/gear-workspace.jpg)](docs/screenshots/gear-workspace.jpg)
 
@@ -46,7 +46,7 @@ Generate a small original sample corpus with `python scripts/generate_fixtures.p
 
 ## Installer and MCP
 
-[Build the Windows installer](docs/windows-packaging.md) to include the private .NET runtime, geometry worker, MCP launcher, help and notices. Setup offers an optional **Create a desktop shortcut** checkbox. Generated installers stay under ignored `.local/packages/`; no release download is published by this source repository yet. Local builds are unsigned unless separately signed.
+Download the `win-x64-Setup.exe` asset from the [latest release](https://github.com/LeeLorenzSr/3D-BuilderCrap/releases/latest). The installer includes the private .NET runtime, geometry worker, MCP launcher and offline help. Setup offers an optional **Create a desktop shortcut** checkbox. The release also includes SHA-256 checksums. [Build the installer from source](docs/windows-packaging.md).
 
 For the open desktop scene, choose **View → MCP access → Enable access → Copy config**. Access is off at launch. A separate `--headless` stdio mode is also available. [Setup and local access rules](docs/mcp-access.md).
 

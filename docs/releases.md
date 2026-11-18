@@ -2,7 +2,7 @@
 
 The repository is [LeeLorenzSr/3D-BuilderCrap](https://github.com/LeeLorenzSr/3D-BuilderCrap). A release combines a version tag, notes and downloadable files. Keep installers out of Git and attach them as release assets.
 
-Current version: **1.0.4**. This source change has not published a tag or release. Local packages remain unsigned.
+Current source version: **1.0.4**. Download the Windows installer and checksums from the [latest public release](https://github.com/LeeLorenzSr/3D-BuilderCrap/releases/latest).
 
 ## Recommended: build a draft from a tag
 
@@ -52,6 +52,6 @@ Update the version in `src/BuilderCrap/Directory.Build.props`, the four-part ass
 
 ## Verification boundary
 
-The 1.0.2 local native/.NET/package builds, release-asset preparation and focused checks are recorded in the local migration evidence. The hosted GitHub Actions workflow cannot be claimed as exercised until a maintainer pushes the tag and reviews that run. Source relocation changes no model schema, installer AppId or MCP tool contract. Accessibility/DPI testing and Windows settings changes are outside this release pass.
+The [hosted release workflow](https://github.com/LeeLorenzSr/3D-BuilderCrap/actions/workflows/release.yml) records the build, focused checks and packaging results for each tag. Release assets contain the installer, payload manifest, license, notes and SHA-256 checksums.
 
 GitHub documents [creating and publishing releases](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository), and the CLI documents [`--draft` and `--verify-tag`](https://cli.github.com/manual/gh_release_create).
