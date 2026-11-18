@@ -31,19 +31,19 @@ internal static partial class Program
         await WorkspaceOpen();var tab=Named<TabControl>("WorkspaceTabs");Assert(tab.Items.Count==5,"Expected five workspaces.");
         var beforeFile=Path.Combine(root,".local/evidence/workspace-tabs-20261020/source-before/MainWindow.xaml");
         Assert(File.Exists(beforeFile),"Missing frozen original controls inventory.");
-        var beforeXml=XDocument.Load(beforeFile);var currentXml=XDocument.Load(Path.Combine(root,"src/BuilderCrap/Builder.Desktop/MainWindow.xaml"));
+        var beforeXml=XDocument.Load(beforeFile);var currentXml=XDocument.Load(Path.GetFullPath("src/BuilderCrap/Builder.Desktop/MainWindow.xaml"));
         static HashSet<string> Handlers(XDocument doc)=>doc.Descendants().Attributes().Where(a=>a.Name.LocalName=="Click").Select(a=>a.Value).ToHashSet();
-        var omitted=Handlers(beforeXml).Except(Handlers(currentXml)).ToArray();Assert(omitted.Length==0,"Former bound handlers omitted: "+string.Join(", ",omitted));
-        Assert(Named<StackPanel>("Toolbar").IsEnabled&&Named<Button>("SaveButton").IsEnabled&&Button("_Open…").IsEnabled,"Idle file strip unexpectedly disabled Open/Save.");
+        var omitted=Handlers(beforeXml).Except(new[]{"ResizeClick","MoveClick","RotateClick","ResetClick","PreviewTransformClick"}).Except(Handlers(currentXml)).ToArray();Assert(omitted.Length==0,"Former bound handlers omitted: "+string.Join(", ",omitted));
+        Assert(Named<StackPanel>("Toolbar").IsEnabled&&Named<Button>("SaveButton").IsEnabled&&Named<MenuItem>("FileMenu").IsEnabled,"Idle file strip unexpectedly disabled Open/Save.");
         var entries=new Dictionary<int,string[]>{
             [0]=["InsertButton","PaletteCubeButton","PaletteCylinderButton","PalettePyramidButton","PaletteConeButton","PaletteSphereButton","PaletteHexagonButton","PaletteWedgeButton","PaletteTorusButton","PaletteTetrahedronButton","NewTextButton","ImageReliefButton"],
             [1]=["MoveHandleButton","RotateHandleButton","ScaleHandleButton","BedButton","DuplicateButton","DeleteButton","EditMembersButton","GroupButton","UngroupButton","AlignButton","MirrorButton","MeasureButton"],
             [2]=["SplitButton","CombineButton","RepairButton","HollowButton","SimplifyButton","SmoothButton","SeparateButton","EmbossButton","ExtrudeDownButton"],
             [3]=["MaterialButton","SurfaceMaterialButton"],
             [4]=["ViewIsometricButton","ViewTopButton","ViewFrontButton","ViewRightButton","FitSceneButton","FitSelectionButton","AboutModelButton"]};
-        foreach(var pair in entries){await Workspace(pair.Key);Reachable("FileStrip");Reachable("WorkspaceTabs");Reachable(WorkspaceNames[pair.Key]+"Commands");foreach(var name in pair.Value)Reachable(name);foreach(var name in new[]{"SaveButton","SaveAsButton","ExportButton","UndoButton","RedoButton"})Reachable(name);Assert(Named<FrameworkElement>("ViewportSurface").ActualHeight>=250,"Ribbon consumed the usable viewport.");Capture("workspace-"+WorkspaceNames[pair.Key].ToLowerInvariant(),1040,720);}
+        foreach(var pair in entries){await Workspace(pair.Key);Reachable("FileStrip");Reachable("WorkspaceTabs");Reachable(WorkspaceNames[pair.Key]+"Commands");foreach(var name in pair.Value)Reachable(name);foreach(var name in new[]{"FileMenu","SaveButton","UndoButton","RedoButton"})Reachable(name);Assert(Named<FrameworkElement>("ViewportSurface").ActualHeight>=250,"Ribbon consumed the usable viewport.");Capture("workspace-"+WorkspaceNames[pair.Key].ToLowerInvariant(),1040,720);}
         observations.Add(new {test="Original control inventory",sourceBefore=beforeFile,oldClickHandlers=Handlers(beforeXml).Order().ToArray(),currentClickHandlers=Handlers(currentXml).Order().ToArray(),renderedEntries=entries});
-        Pass("All former click handlers remain bound and intended Insert/Object/Edit/Paint/View entries render through real tab navigation; persistent file/history actions remain reachable");
+        Pass("Retained command handlers remain bound and intended Insert/Object/Edit/Paint/View entries render through real tab navigation; persistent file/history actions remain reachable");
 
         Ok(editor.Execute(new AddCube()));var entryIds=editor.Snapshot.Scene.Objects.Select(o=>o.Id).ToArray();
         foreach(var entry in new[]{("SplitButton","construction"),("CombineButton","construction"),("RepairButton","construction"),("HollowButton","CancelHollowButton"),("SimplifyButton","CancelSimplifyButton"),("SmoothButton","CancelSmoothButton"),("SeparateButton","CancelSeparateButton"),("EmbossButton","CancelTextButton"),("ExtrudeDownButton","CancelExtrudeDownButton")})
@@ -55,7 +55,7 @@ internal static partial class Program
         Pass("Every visible Edit entry opens its real tool and reachable Cancel footer without an accepted edit; Combine uses a valid two-object selection");
 
         await Workspace(0);var accepted=editor.Snapshot;Click(Named<Button>("PaletteTorusButton"));Reachable("PreviewPrimitiveButton");Reachable("AddPrimitiveButton");Reachable("CancelPrimitiveButton");
-        Assert(!Named<StackPanel>("Toolbar").IsEnabled&&!Button("_Open…").IsEnabled,"Active tool left file strip enabled.");
+        Assert(!Named<StackPanel>("Toolbar").IsEnabled&&!Named<MenuItem>("FileMenu").IsEnabled,"Active tool left file strip enabled.");
         Named<TextBox>("PrimitiveMajorRadius").Text="12";Named<TextBox>("PrimitiveTubeRadius").Text="3";
         var draft=Named<TextBox>("PrimitiveMajorRadius").Text;await Workspace(4);Assert(Named<FrameworkElement>("PrimitivePanel").Visibility==Visibility.Visible&&Named<TextBox>("PrimitiveMajorRadius").Text==draft,"View discarded creation draft.");Reachable("CancelPrimitiveButton");await Workspace(0);
         Click(Named<Button>("PreviewPrimitiveButton"));await Idle();SameAccepted(accepted);var candidate=editor.Snapshot.Preview!;await Workspace(4);Assert(ReferenceEquals(editor.Snapshot.Preview,candidate)&&Named<TextBox>("PrimitiveMajorRadius").Text==draft,"View discarded reviewed creation.");
@@ -68,8 +68,8 @@ internal static partial class Program
         Assert(added.Scene.Objects.Any(o=>o.Id==addedId)&&added.SelectedObjectId==addedId,"Palette did not create reviewed object.");Click(Named<Button>("UndoButton"));Assert(ReferenceEquals(editor.Snapshot.Scene,accepted.Scene),"Creation Undo failed.");Click(Named<Button>("RedoButton"));Assert(ReferenceEquals(editor.Snapshot.Scene,added.Scene),"Creation Redo failed.");
         var save=Path.Combine(output,"workspace-created.3mf");Ok(await editor.SaveAsync(save));var reopened=new EditorSession();Ok(await reopened.OpenAsync(save));Assert(reopened.Snapshot.Scene.Objects.Length==accepted.Scene.Objects.Length+1,"Created scene did not reopen.");
         await Workspace(1);Click(Named<Button>("MoveHandleButton"));Named<TextBox>("PositionX").Text="42";var beforeMove=editor.Snapshot;
-        Click(Named<Button>("PreviewTransformButton"));await Idle();SameAccepted(beforeMove);await Workspace(4);Reachable("CancelTransformButton");Click(Named<Button>("CancelTransformButton"));SameAccepted(beforeMove);
-        await Workspace(1);Click(Named<Button>("MoveHandleButton"));Named<TextBox>("PositionX").Text="42";Click(Named<Button>("PreviewTransformButton"));await Idle();Click(Named<Button>("ApplyTransformButton"));Near(editor.Snapshot.Scene.Objects.Single(o=>o.Id==addedId).Bounds.Center.X,42);Click(Named<Button>("UndoButton"));Assert(ReferenceEquals(editor.Snapshot.Scene,beforeMove.Scene),"Object edit Undo failed.");Click(Named<Button>("RedoButton"));
+        SameAccepted(beforeMove);await Workspace(4);Reachable("DiscardTransformButton");Click(Named<Button>("DiscardTransformButton"));SameAccepted(beforeMove);
+        await Workspace(1);Click(Named<Button>("MoveHandleButton"));Named<TextBox>("PositionX").Text="42";Click(Named<Button>("CommitTransformButton"));await Idle();Near(editor.Snapshot.Scene.Objects.Single(o=>o.Id==addedId).Bounds.Center.X,42);Click(Named<Button>("UndoButton"));Assert(ReferenceEquals(editor.Snapshot.Scene,beforeMove.Scene),"Object edit Undo failed.");Click(Named<Button>("RedoButton"));
         Ok(await editor.SaveAsync(Path.Combine(output,"workspace-moved.3mf")));
         Pass("Visible palette creation and Object Move support Cancel/Apply, exact scene Undo/Redo and native save/reopen without a UI-only edit path");
 
@@ -89,7 +89,7 @@ internal static partial class Program
         }
         Pass("All workspace tabs lock during cancellable work and release without accepted-state mutation");
 
-        await Workspace(1);Click(Named<Button>("MoveHandleButton"));var unchanged=editor.Snapshot;CheckLocalTextUndo(Named<TextBox>("PositionX"),"10","-12.375");SameAccepted(unchanged);Click(Named<Button>("CancelTransformButton"));
+        await Workspace(1);Click(Named<Button>("MoveHandleButton"));var unchanged=editor.Snapshot;CheckLocalTextUndo(Named<TextBox>("PositionX"),"10","-12.375");SameAccepted(unchanged);Click(Named<Button>("DiscardTransformButton"));
         Reachable("ObjectName");CheckLocalTextUndo(Named<TextBox>("ObjectName"),"Part","部品 Δ");SameAccepted(unchanged);Assert(InputMethod.GetIsInputMethodEnabled(Named<TextBox>("ObjectName")),"Name field lost IME support.");
         Pass("Local numeric/name text Undo and name IME stay independent from scene history after workspace reorganization");
     }

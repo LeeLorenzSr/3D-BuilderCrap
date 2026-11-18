@@ -22,7 +22,9 @@ internal static class ModelFiles
     private static void Check(CancellationToken token, IProgress<OperationProgress>? progress, string stage, int count = 0, int total = 0)
     { progress?.Report(new(stage,count,total)); token.ThrowIfCancellationRequested(); }
 
-    public static Scene Read(string path, ModelUnit? unit, CancellationToken token, IProgress<OperationProgress>? progress,StlImportMode stlMode=StlImportMode.Strict)
+    internal sealed record ImportedModel(Scene Scene, bool HasAdditionalPackageData = false);
+
+    public static ImportedModel Read(string path, ModelUnit? unit, CancellationToken token, IProgress<OperationProgress>? progress,StlImportMode stlMode=StlImportMode.Strict)
     {
         Check(token,progress,"Reading model");
         if(!Enum.IsDefined(stlMode))throw new ModelException("Choose Strict or Geometry only for STL import.");
@@ -30,13 +32,13 @@ internal static class ModelFiles
         if (stream.Length > ModelLimits.MaxFileBytes) throw new ModelException("This prototype opens files up to 64 MiB.");
         var extension=Path.GetExtension(path).ToLowerInvariant();
         var resolvedUnit=unit??(extension is ".gltf" or ".glb"?ModelUnit.Meters:ModelUnit.Millimeters);
-        return extension switch {
+        if (extension == ".3mf") return Read3mf(stream,token,progress);
+        return new ImportedModel(extension switch {
             ".stl" => new Scene(Guid.NewGuid(),[new(Guid.NewGuid(),Path.GetFileNameWithoutExtension(path),ReadStl(stream,resolvedUnit,token,progress,stlMode),Affine.Identity)]),
-            ".3mf" => Read3mf(stream,token,progress),
             ".obj" => ObjFiles.Read(path,stream,resolvedUnit,token,progress),
             ".ply" => PlyFiles.Read(path,stream,resolvedUnit,token,progress),
             ".gltf" or ".glb" => GltfFiles.Read(path,stream,resolvedUnit,token,progress),
-            _ => throw new ModelException("Open STL, OBJ, PLY, glTF/GLB or a supported 3MF file.") };
+            _ => throw new ModelException("Open STL, OBJ, PLY, glTF/GLB or a supported 3MF file.") });
     }
 
     private static Mesh ReadStl(Stream stream, ModelUnit unit, CancellationToken token, IProgress<OperationProgress>? progress,StlImportMode stlMode)
@@ -112,16 +114,26 @@ internal static class ModelFiles
             DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null, MaxCharactersInDocument = ModelLimits.MaxFileBytes });
         return XDocument.Load(reader,LoadOptions.PreserveWhitespace);
     }
-    private static Scene Read3mf(Stream stream, CancellationToken token, IProgress<OperationProgress>? progress)
+    private static (ZipArchiveEntry Model, bool HasAdditionalData) InspectPackage(ZipArchive zip, CancellationToken token)
     {
-        using var zip = new ZipArchive(stream,ZipArchiveMode.Read,true);
         if (zip.Entries.Count > 1000) throw new ModelException("The 3MF package has too many parts for this prototype.");
         var rels = ReadXml(zip.GetEntry("_rels/.rels") ?? throw new ModelException("3MF package relationships are missing."),token);
         var starts = rels.Root?.Elements(Relationships+"Relationship").Where(e => (string?)e.Attribute("Type") == ModelRelationship).ToArray() ?? [];
         if (starts.Length != 1 || (string?)starts[0].Attribute("TargetMode") == "External")
             throw new ModelException("3MF needs one local primary model.");
         var target = Uri.UnescapeDataString(Required(starts[0],"Target")).TrimStart('/');
-        var model = ReadXml(zip.GetEntry(target) ?? throw new ModelException("The primary 3MF model part is missing."),token).Root;
+        var primary = zip.GetEntry(target) ?? throw new ModelException("The primary 3MF model part is missing.");
+        var hasAdditionalData = rels.Root!.Elements().Any(e => e != starts[0]) ||
+            zip.Entries.Any(entry => entry.Name.Length > 0 && entry != primary &&
+                entry.FullName is not ("_rels/.rels" or "[Content_Types].xml"));
+        return (primary, hasAdditionalData);
+    }
+
+    private static ImportedModel Read3mf(Stream stream, CancellationToken token, IProgress<OperationProgress>? progress)
+    {
+        using var zip = new ZipArchive(stream,ZipArchiveMode.Read,true);
+        var package = InspectPackage(zip, token);
+        var model = ReadXml(package.Model,token).Root;
         if (model?.Name != Core+"model") throw new ModelException("Unrecognized 3MF model namespace.");
         if (!string.IsNullOrWhiteSpace((string?)model.Attribute("requiredextensions")))
             throw new ModelException("This 3MF requires extensions that the prototype does not support yet.");
@@ -319,7 +331,8 @@ internal static class ModelFiles
             }
         }
         token.ThrowIfCancellationRequested();
-        return new(Guid.NewGuid(),objects.ToImmutable()) {Groups=groups.ToImmutable(),Metadata=metadata};
+        return new(new Scene(Guid.NewGuid(),objects.ToImmutable()) {Groups=groups.ToImmutable(),Metadata=metadata},
+            package.HasAdditionalData);
     }
     private static Affine ReadTransform(string? text, double factor)
     {
@@ -329,8 +342,19 @@ internal static class ModelFiles
         var a = parts.Select(Parse).ToArray();
         if (a.Any(n => !double.IsFinite(n))) throw new ModelException("3MF transform is not finite.");
         var value = new Affine(new(a[0],a[1],a[2]),new(a[3],a[4],a[5]),new(a[6],a[7],a[8]),new Vec3(a[9],a[10],a[11])*factor);
-        if (!double.IsFinite(Determinant(value)) || Math.Abs(Determinant(value)) < 1e-15) throw new ModelException("3MF transform is singular.");
+        if (!CanWriteTransform(value)) throw new ModelException("3MF transform is singular.");
         return value;
+    }
+    // Test the independence of the three axes separately from their physical scale.
+    private static bool CanWriteTransform(Affine transform)
+    {
+        static Vec3 Normalize(Vec3 axis)
+        {
+            var largest = Math.Max(Math.Abs(axis.X), Math.Max(Math.Abs(axis.Y), Math.Abs(axis.Z)));
+            return largest == 0 ? default : new(axis.X / largest, axis.Y / largest, axis.Z / largest);
+        }
+        var normalized = new Affine(Normalize(transform.X), Normalize(transform.Y), Normalize(transform.Z), default);
+        return Math.Abs(Determinant(normalized)) >= 1e-15;
     }
     internal static double Determinant(Affine value)
     { var cross = Vec3.Cross(value.X,value.Y); return cross.X*value.Z.X + cross.Y*value.Z.Y + cross.Z*value.Z.Z; }
@@ -349,9 +373,23 @@ internal static class ModelFiles
             }
             Check(token,progress,"Ready to save");
             // Same-directory rename/replace is the commit point. The old destination stays intact on write/cancel failure.
-            File.Move(temporary,path,true);
+            var replace = File.Exists(path);
+            if (!stl && replace) CheckNativeDestination(path, token);
+            token.ThrowIfCancellationRequested();
+            File.Move(temporary,path,replace);
         }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
+    }
+    private static void CheckNativeDestination(string path, CancellationToken token)
+    {
+        // Save As, selection export, recovery and save-before-close all write through this gate.
+        using var file = File.OpenRead(path);
+        if (file.Length == 0) return;
+        if (file.Length > ModelLimits.MaxFileBytes)
+            throw new ModelException("This existing 3MF is too large to check for additional project data. Choose a new file name.");
+        using var archive = new ZipArchive(file, ZipArchiveMode.Read);
+        if (InspectPackage(archive, token).HasAdditionalData)
+            throw new ModelException("This 3MF contains additional project data. Save the editable model under a new file name to keep the original package intact.");
     }
     private static void WriteStl(Stream stream, Scene scene, CancellationToken token, IProgress<OperationProgress>? progress)
     {
@@ -374,10 +412,26 @@ internal static class ModelFiles
     }
     private static void Write3mf(Stream stream, Scene scene, CancellationToken token, IProgress<OperationProgress>? progress)
     {
+        // A collapsed axis (for example, in a glTF node) cannot be stored as a 3MF
+        // placement. Keep its visible vertices and face/material indices in world space.
+        var objects = scene.Objects.Select(obj =>
+        {
+            token.ThrowIfCancellationRequested();
+            if (CanWriteTransform(obj.Transform)) return obj;
+            var vertices = obj.Mesh.Vertices.Select(vertex =>
+            {
+                token.ThrowIfCancellationRequested();
+                return obj.Transform.Apply(vertex);
+            });
+            var faces = Determinant(obj.Transform) < 0
+                ? obj.Mesh.Triangles.Select(face => new Triangle(face.A,face.C,face.B))
+                : obj.Mesh.Triangles;
+            return obj with {Mesh = new Mesh(vertices, faces), Transform = Affine.Identity};
+        }).ToArray();
         // Name and uniform material are part of the mesh-resource identity; sharing geometry must not merge colors.
         // Components encode group membership using standard 3MF, with no private metadata.
         var materials=new Dictionary<SurfaceMaterial,int>();
-        foreach(var obj in scene.Objects)
+        foreach(var obj in objects)
         {
             token.ThrowIfCancellationRequested();
             foreach(var material in obj.TriangleMaterials.Values.Concat(obj.Material is {} fallback?[fallback]:[]))
@@ -387,7 +441,7 @@ internal static class ModelFiles
         var materialResource=materials.Count>0 ? 1 : 0;
         var resources=new Dictionary<(Mesh Mesh,string Name,SurfaceMaterial? Material,string Faces),int>();
         var objectResources=new Dictionary<Guid,int>();
-        foreach(var obj in scene.Objects)
+        foreach(var obj in objects)
         {
             token.ThrowIfCancellationRequested();
             var faces=string.Concat(obj.TriangleMaterials.OrderBy(p=>p.Key).Select(p=>$"{p.Key}:{p.Value.Name.Length}:{p.Value.Name}{p.Value.Color.Hex};"));
@@ -399,7 +453,7 @@ internal static class ModelFiles
             throw new ModelException("Saving these groups needs more than the 1,000 supported 3MF object resources.");
         var groupResources=scene.Groups.Select((group,index)=>(group.Id,Resource:resources.Count+index+1+materialResource)).ToDictionary(p=>p.Id,p=>p.Resource);
         var membership=scene.Groups.SelectMany(group=>group.ObjectIds.Select(id=>(id,group))).ToDictionary(p=>p.id,p=>p.group);
-        var objectsById=scene.Objects.ToDictionary(o=>o.Id);
+        var objectsById=objects.ToDictionary(o=>o.Id);
         using var zip = new ZipArchive(stream,ZipArchiveMode.Create,true);
         void TextPart(string name, string value)
         { using var output = new StreamWriter(zip.CreateEntry(name).Open(),new UTF8Encoding(false)); output.Write(value); }
@@ -427,7 +481,7 @@ internal static class ModelFiles
             writer.WriteEndElement();
         }
         var written=new HashSet<int>();
-        foreach(var obj in scene.Objects)
+        foreach(var obj in objects)
         {
             var id=objectResources[obj.Id];
             if(!written.Add(id)) continue;
@@ -478,7 +532,7 @@ internal static class ModelFiles
         }
         writer.WriteEndElement(); writer.WriteStartElement("build");
         var emittedGroups=new HashSet<Guid>();
-        foreach(var obj in scene.Objects)
+        foreach(var obj in objects)
         {
             token.ThrowIfCancellationRequested();
             if(membership.TryGetValue(obj.Id,out var group))

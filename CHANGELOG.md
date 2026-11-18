@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.4
+
+- Put Move, Rotate and Scale beside the model with color-coded handles and direct numeric entry. Drag and release to make one undoable edit.
+- Replace the adaptive line grid with a 10 mm checkerboard and mark the positive X and Y axes every 50 mm.
+- Move document commands into File, keep Save and history in the workspace header, and let the Items pane collapse.
+- Keep surface colors visible under a blue selection outline. Use the same neutral gray for unassigned faces, painting and default color export.
+- Rename Place on bed to Settle and give it a dedicated confirmation.
+
+## 1.0.3
+
+- Preserve the source 3MF when opening a project that contains slicer settings, attachments or other package parts. Save the editable model to a separate file.
+- Keep typed dimensions, positions and angles exact with handle snapping enabled. Place on bed keeps the handle snap setting.
+- Reopen miniature models with small placement scales. Save collapsed glTF instances with their visible geometry and face colors.
+
 ## 1.0.2
 
 - Move maintained application sources to `src/BuilderCrap` and update build scripts, checks, tools and documentation.

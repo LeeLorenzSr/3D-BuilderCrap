@@ -8,9 +8,9 @@ internal static partial class Program
 {
     private static void BeginShape(string shape)
     {
-        var item=Tree(window).OfType<MenuItem>().Single(m=>m.Header?.ToString()==shape);
-        Assert(item.IsEnabled,"Disabled shape entry: "+shape);
-        item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent,item));
+        var button=Named<Button>("Palette"+shape+"Button");
+        Assert(button.IsEnabled,"Disabled shape entry: "+shape);
+        Click(button);
         Assert(Named<FrameworkElement>("PrimitivePanel").Visibility==Visibility.Visible,"Shape panel failed to open.");
         Assert(Named<ListBox>("PrimitiveChoices").Items.Count==9,"Palette must expose all nine shapes.");
     }
@@ -99,13 +99,13 @@ internal static partial class Program
         before=editor.Snapshot;BeginShape("Cube");
         Invoke("MoveHandleClick",window,new RoutedEventArgs());Invoke("SplitClick",window,new RoutedEventArgs());Invoke("UndoClick",window,new RoutedEventArgs());
         Invoke("SelectAllClick",window,new RoutedEventArgs());
-        Assert(Named<FrameworkElement>("TransformActions").Visibility==Visibility.Collapsed&&Named<FrameworkElement>("ConstructionActions").Visibility==Visibility.Collapsed,"Another tool replaced active creation.");SameAccepted(before);
+        Assert(Named<FrameworkElement>("TransformHud").Visibility==Visibility.Collapsed&&Named<FrameworkElement>("ConstructionActions").Visibility==Visibility.Collapsed,"Another tool replaced active creation.");SameAccepted(before);
         Click(Named<Button>("CancelPrimitiveButton"));
         Ok(editor.Execute(new AddCube()));Ok(editor.Execute(new AddCube()));var ids=editor.Snapshot.Scene.Objects.Take(2).Select(o=>o.Id).ToImmutableArray();
         Ok(await editor.PreviewArrangementAsync(new GroupRequest(ids)));Ok(editor.ApplyPreview(editor.Snapshot.Preview!.Id));
         var group=editor.Snapshot.Scene.Groups.Single();Ok(editor.EnterGroup(group.Id,ids[0]));Refresh();before=editor.Snapshot;
         Invoke("AddCubeClick",window,new RoutedEventArgs());
-        Assert(Named<FrameworkElement>("PrimitiveActions").Visibility==Visibility.Collapsed&&!Named<MenuItem>("AddShapeMenu").IsEnabled,"Member scope allowed scene creation.");SameAccepted(before);
+        Assert(Named<FrameworkElement>("PrimitiveActions").Visibility==Visibility.Collapsed&&!Named<Button>("PaletteCubeButton").IsEnabled,"Member scope allowed scene creation.");SameAccepted(before);
         Ok(editor.ExitGroup());Refresh();
         Pass("Creation guards conflicting tools/selection/history and remains unavailable inside member editing");
     }

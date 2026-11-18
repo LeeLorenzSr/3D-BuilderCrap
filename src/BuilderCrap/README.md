@@ -1,6 +1,6 @@
 # Application source
 
-3D BuilderCrap **1.0.2**, an independent C#/.NET/WPF mesh editor for 3D printing. This is the maintained application source tree. Internal project names and the installed `Builder.exe` identifier remain stable.
+3D BuilderCrap **1.0.4**, an independent C#/.NET/WPF mesh editor for 3D printing. This is the maintained application source tree. Internal project names and the installed `Builder.exe` identifier remain stable.
 
 From this directory, after building the native worker from the repository root:
 

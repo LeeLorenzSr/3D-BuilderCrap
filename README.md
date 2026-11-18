@@ -2,7 +2,7 @@
 
 An approachable Windows mesh editor for 3D printing, inspired by the useful workflows of Microsoft 3D Builder. Written in C#/.NET with WPF, a shared editing core, and a native geometry worker. It is an independent implementation and does not require Microsoft's application, REA, or an LLM.
 
-Current source version: **1.0.2**. The original application code, tools and artwork in this repository are available under the [MIT license](LICENSE). Dependencies retain their own [licenses and notices](THIRD-PARTY-NOTICES.md).
+Current source version: **1.0.4**. The original application code, tools and artwork in this repository are available under the [MIT license](LICENSE). Dependencies retain their own [licenses and notices](THIRD-PARTY-NOTICES.md).
 
 ![3D BuilderCrap application mark](src/BuilderCrap/Builder.Desktop/Assets/Icons/app-mark.svg)
 

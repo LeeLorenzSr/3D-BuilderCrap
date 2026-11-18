@@ -192,12 +192,12 @@ internal static partial class Program
         var row=ObjectTreeContainer(member);var currentLabel=ObjectTreeVisuals(row).OfType<TextBlock>().Single(t=>t.Text=="Edited final member");
         list.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,Environment.TickCount,MouseButton.Left){RoutedEvent=Control.MouseDoubleClickEvent,Source=currentLabel});await Idle();
         var guarded=editor.Snapshot;
-        Click(Named<Button>("MoveHandleButton"));Named<TextBox>("PositionX").Text="50";Click(Named<Button>("PreviewTransformButton"));await Idle();var previewed=editor.Snapshot;
+        Click(Named<Button>("BedButton"));await Idle();var previewed=editor.Snapshot;
         Assert(previewed.Preview!=null,"Guard probe did not establish a preview.");
         list.SelectedItems.Clear();list.SelectedItems.Add(list.Items[0]);
         list.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,Environment.TickCount,MouseButton.Left){RoutedEvent=Control.MouseDoubleClickEvent,Source=currentLabel});
         SameAccepted(guarded);Assert(editor.Snapshot.Preview?.Id==previewed.Preview!.Id,"Tree input replaced or accepted a pending preview.");
-        Click(Named<Button>("CancelTransformButton"));await Idle();SameAccepted(guarded);
+        Click(Named<Button>("SettleCancelButton"));await Idle();SameAccepted(guarded);
         Assert(list.SelectedItems.OfType<ObjectTreeRow>().SelectMany(r=>r.SelectionUnit.ObjectIds).ToHashSet().SetEquals(guarded.SelectedObjectIds),"Cancel restored Core selection but left stale visual row selection.");
         observations.Add(new{test="Scene/member tree context restoration",sceneOffset,memberOffset,selection=guarded.SelectedObjectIds});Capture("52-expanded-scope-restored",1040,680);
         Pass("Member double-click, Done and scoped rename Undo/Redo preserve explicit member/whole-group selection and independent scene/member scroll anchors; preview/cancel guards reject tree selection changes");
@@ -282,10 +282,12 @@ internal static partial class Program
     {
         var expected=selected.ToHashSet();
         var map=(Dictionary<GeometryModel3D,Guid>)typeof(MainWindow).GetField("hitObjects",PrivateInstance)!.GetValue(window)!;
+        var outlines=(System.Collections.IDictionary)typeof(MainWindow).GetField("outlineShapes",PrivateInstance)!.GetValue(window)!;
+        Assert(expected.SetEquals(outlines.Keys.Cast<Guid>()),"Wrong selection silhouette membership.");
         Assert(map.Count==editor.Snapshot.Scene.Objects.Length,"Rendered leaf model count differs from accepted scene.");
         foreach(var (model,id) in map)
         {
-            var color=expected.Contains(id) ? Color.FromRgb(38,132,197) : Color.FromRgb(153,170,185);
+            var color=Color.FromRgb(229,229,229);
             Assert(model.Material is DiffuseMaterial {Brush:SolidColorBrush front} && front.Color==color,"Viewport material has stale or incorrect selected membership: "+id);
             Assert(model.BackMaterial is DiffuseMaterial {Brush:SolidColorBrush back} && back.Color==color,"Back material differs from current selected membership: "+id);
         }
@@ -308,7 +310,11 @@ internal static partial class Program
     {
         var list=Named<ListBox>("ObjectList");var row=list.Items.OfType<ObjectTreeRow>().Single(r=>r.Id==id);
         var container=list.ItemContainerGenerator.ContainerFromItem(row) as ListBoxItem;
-        Assert(container!=null && Bounds(container).Top>=Bounds(list).Top-1 && Bounds(container).Bottom<=Bounds(list).Bottom+1,"Requested member is not realized inside the list viewport.");
+        var scroll=ObjectTreeVisuals(list).OfType<ScrollViewer>().First();
+        var member=container is null ? Rect.Empty : Bounds(container);
+        var viewport=Bounds(list);
+        Assert(container!=null && member.Top>=viewport.Top-1 && member.Bottom<=viewport.Bottom+1,
+            $"Member row {list.Items.IndexOf(row)} at {member} falls outside {viewport}. Scroll offset {scroll.VerticalOffset}, viewport {scroll.ViewportHeight}.");
     }
 
     private static async Task CheckIncrementalExpandedScopeRows()

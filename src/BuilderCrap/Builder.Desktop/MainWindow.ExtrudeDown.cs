@@ -122,7 +122,7 @@ public partial class MainWindow
         PreviewExtrudeDownButton.IsEnabled=operation==null&&!extrudeDownCancelRequested;
         ApplyExtrudeDownButton.IsEnabled=candidate!=null&&!extrudeDownDraftChanged&&operation==null&&!extrudeDownCancelRequested&&snapshot.Revision==extrudeDownBaseRevision;
         CancelExtrudeDownButton.IsEnabled=!extrudeDownCancelRequested;
-        Toolbar.IsEnabled=ObjectList.IsEnabled=false;ObjectsOverview.Visibility=EditPanel.Visibility=ConstructionTools.Visibility=InspectionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
+        Toolbar.IsEnabled=ObjectList.IsEnabled=false;ObjectsOverview.Visibility=ConstructionTools.Visibility=InspectionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
         PreviewBanner.Visibility=candidate==null?Visibility.Collapsed:Visibility.Visible;
         PreviewLabel.Text=ExtrudeDownShowOriginal.IsChecked==true?"Original · extrusion not yet applied":"Extrude down preview · not yet applied";EmptyHint.Visibility=Visibility.Collapsed;
     }

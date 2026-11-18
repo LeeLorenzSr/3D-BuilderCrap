@@ -13,6 +13,25 @@ public partial class MainWindow
     private int ViewWorkspaceIndex=>WorkspaceTabs.Items.IndexOf(ViewWorkspaceTab);
     private bool WorkspaceBusy=>operation!=null||editor.Snapshot.IsBusy||transformUpdating||handleDrag!=null||documentPromptActive||brushGesture!=null;
 
+    private bool hideItems;
+    private void ToggleItemsClick(object sender, RoutedEventArgs e)
+    {
+        hideItems = !hideItems;
+        RefreshWorkspaceNavigation();
+    }
+
+    private void RefreshItemsPane(bool active, bool busy)
+    {
+        // Preserve viewport width and the captured axis during a transform gesture.
+        var show = !hideItems || (active && handleMode == null);
+        ItemsPane.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        ToggleItemsButton.Visibility = active || busy ? Visibility.Collapsed : Visibility.Visible;
+        ToggleItemsButton.Content = hideItems ? "❮" : "❯";
+        var action = hideItems ? "Show items pane" : "Hide items pane";
+        ToggleItemsButton.ToolTip = action;
+        System.Windows.Automation.AutomationProperties.SetName(ToggleItemsButton, action);
+    }
+
     private void InitializeWorkspaceNavigation()
     {workspaceReady=true;workspaceLastIndex=WorkspaceTabs.SelectedIndex;RefreshWorkspaceNavigation();}
     private void WorkspaceTabChanged(object sender,SelectionChangedEventArgs e)
@@ -35,26 +54,27 @@ public partial class MainWindow
         try
         {
             var active=WorkspaceToolActive;var busy=WorkspaceBusy;
+            RefreshItemsPane(active,busy);
             if(active&&!workspaceHadTool)workspaceOwnerIndex=workspaceLastIndex;
             workspaceHadTool=active;
-            WorkspaceTabs.IsEnabled=!busy;
+            var transformActive=handleMode.HasValue;
+            WorkspaceTabs.IsEnabled=!busy || transformActive;
             for(var i=0;i<WorkspaceTabs.Items.Count;i++)
-                ((TabItem)WorkspaceTabs.Items[i]).IsEnabled=!busy&&(!active||i==workspaceOwnerIndex||i==ViewWorkspaceIndex);
+                ((TabItem)WorkspaceTabs.Items[i]).IsEnabled=transformActive || !busy&&(!active||i==workspaceOwnerIndex||i==ViewWorkspaceIndex);
             foreach(var (commands,index) in new[]{(InsertCommands,0),(ObjectCommands,1),(EditCommands,2),(PaintCommands,WorkspaceTabs.Items.IndexOf(PaintWorkspaceTab)),(ViewCommands,ViewWorkspaceIndex)})
             {
-                // The active category keeps its header; View keeps compatible camera commands.
-                ((FrameworkElement)commands.Parent).Visibility=active&&index!=ViewWorkspaceIndex?Visibility.Collapsed:Visibility.Visible;
+                // Keep the camera projection fixed from pointer-down through release.
+                ((FrameworkElement)commands.Parent).Visibility=active&&handleMode==null&&index!=ViewWorkspaceIndex?Visibility.Collapsed:Visibility.Visible;
                 commands.IsEnabled=!busy&&(!active||index==ViewWorkspaceIndex);
             }
             AboutModelButton.IsEnabled=!active&&!busy;
             RecoverButton.IsEnabled=recoveryDirectory!=null&&!active&&!busy;
             Toolbar.IsEnabled=!active&&!busy;
-            ObjectsOverview.Visibility=active?Visibility.Collapsed:Visibility.Visible;
+            ObjectsOverview.Visibility=active&&handleMode==null?Visibility.Collapsed:Visibility.Visible;
             ObjectsOverview.IsEnabled=!busy;
             ObjectList.IsEnabled=!active&&!busy;
-            EditPanel.Visibility=handleMode!=null?Visibility.Visible:Visibility.Collapsed;
-            ConstructionTools.Visibility=HandleTools.Visibility=InspectionTools.Visibility=active?Visibility.Collapsed:Visibility.Visible;
-            EditActions.Visibility=EditActionsDivider.Visibility=active?Visibility.Collapsed:Visibility.Visible;
+            ConstructionTools.Visibility=HandleTools.Visibility=InspectionTools.Visibility=active&&handleMode==null?Visibility.Collapsed:Visibility.Visible;
+            EditActions.Visibility=EditActionsDivider.Visibility=active&&!transformActive?Visibility.Collapsed:Visibility.Visible;
             if(!active){RenameFields.Visibility=ObjectSummary.Visibility=Visibility.Visible;}
             var canCreate=!active&&!busy&&editor.Snapshot.EditingGroupId==null;
             foreach(var button in InsertShapePalette.Children.OfType<Button>())button.IsEnabled=canCreate;

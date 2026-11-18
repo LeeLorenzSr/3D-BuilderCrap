@@ -23,7 +23,7 @@ public sealed class HelpWindow : Window
         void DisplayInfo(){var dpi=VisualTreeHelper.GetDpi(this);display.Text=$"Display scaling: {dpi.DpiScaleX*100:0}% · Contrast theme: {(SystemParameters.HighContrast?"On":"Off")}";}
         Loaded+=(_,_)=>DisplayInfo();DpiChanged+=(_,_)=>DisplayInfo();
         Text("Open → edit → undo → save",17,true);
-        Text("Open a model and choose its source units. Use Object for placement, size and groups; Edit for mesh tools; Paint for colors. Preview first, then Apply or Cancel. F6 / Shift+F6 moves between file commands, workspace tabs, viewport and Objects/tool options; Tab explores each pane. Undo/Redo changes accepted edits. Save 3MF to keep groups and colors; Export makes a slicer or interchange file.");
+        Text("Open a model from File and choose its source units. Select a part to show Move, Rotate and Scale. Drag a handle and release, or type an exact value and press Enter. Use Object for Settle and alignment, Edit for mesh tools, and Paint for colors. Undo and Redo are at the upper right. Save a 3MF to keep groups and colors. Export makes a copy for a slicer or another editor.");
         Text("Recovery",17,true);
         Text("Recovery copies are separate from your saved model. At startup or View → Recover unsaved work, choose Restore, Discard or Not now. Restore starts with fresh Undo history; save normally afterward. Unapplied previews are not recovered. Uninstall keeps settings and recovery copies.");
         Text("Local MCP",17,true);

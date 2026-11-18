@@ -101,9 +101,9 @@ internal static partial class Program
         MetadataEdit(dialog=>{MetadataControl<TextBox>(dialog,"ModelTitle").Text="Empty document notes";Click(MetadataControl<Button>(dialog,"ApplyModelMetadataButton"));});
         Assert(editor.Snapshot.Scene.Objects.IsEmpty&&editor.Snapshot.IsDirty&&editor.Snapshot.Scene.Metadata.Title=="Empty document notes","Metadata wrongly required a selected object.");
         Click(Named<Button>("UndoButton"));Assert(ReferenceEquals(editor.Snapshot.Scene,before.Scene),"Empty document metadata Undo failed.");
-        Ok(editor.Execute(new AddCube()));Refresh();await Workspace(1);Click(Named<Button>("MoveHandleButton"));Click(Named<Button>("PreviewTransformButton"));await Idle();await Workspace(4);before=editor.Snapshot;var preview=before.Preview;var calls=0;
+        Ok(editor.Execute(new AddCube()));Refresh();await Workspace(1);Click(Named<Button>("BedButton"));await Idle();await Workspace(4);before=editor.Snapshot;var preview=before.Preview;var calls=0;
         navigationDialogs.MetadataAction=_=>calls++;Invoke("AboutModelClick",window,new RoutedEventArgs());navigationDialogs.MetadataAction=null;
-        Assert(calls==0&&!Named<Button>("AboutModelButton").IsEnabled&&ReferenceEquals(editor.Snapshot.Preview,preview),"About bypassed active preview guard.");SameAccepted(before);Click(Named<Button>("CancelTransformButton"));
+        Assert(calls==0&&!Named<Button>("AboutModelButton").IsEnabled&&ReferenceEquals(editor.Snapshot.Preview,preview),"About bypassed active preview guard.");SameAccepted(before);Click(Named<Button>("SettleCancelButton"));
         Pass("New clears metadata; empty documents can edit/Undo information, while active tool/preview blocks About without losing its candidate");
 
         await MetadataFixture();var group=editor.Snapshot.Scene.Groups.First();Ok(editor.EnterGroup(group.Id,group.ObjectIds[^1]));Refresh();await Workspace(4);before=editor.Snapshot;

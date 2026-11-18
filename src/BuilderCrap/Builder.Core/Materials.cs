@@ -18,7 +18,7 @@ public readonly record struct RgbColor(byte R, byte G, byte B)
 public sealed record SurfaceMaterial(string Name, RgbColor Color)
 {
     /// <summary>Explicit fallback assigned with the first surface paint on an unassigned object.</summary>
-    public static SurfaceMaterial Neutral { get; }=new("Neutral",new(153,170,185));
+    public static SurfaceMaterial Neutral { get; }=new("Neutral",new(229,229,229));
     internal static SurfaceMaterial? Canonical(SurfaceMaterial? material)
     {
         if(material is null) return null;

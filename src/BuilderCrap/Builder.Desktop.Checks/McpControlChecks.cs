@@ -32,7 +32,10 @@ internal static partial class Program
             var config=Tree(content).OfType<TextBox>().Single();Assert(!config.Text.Contains("buildercrap-"),"Disabled dialog exposes endpoint");
             var enable=Tree(content).OfType<Button>().Single(b=>b.Content?.ToString()=="Enable access");Click(enable);Assert(McpHost is not null,"Enable failed");
             var name=McpHost!.PipeName;Assert(config.Text.Contains(name)&&config.Text.Contains("--attach")&&config.IsReadOnly,"Missing usable attachment config");
-            client=await McpClient.CreateAsync(new StdioClientTransport(new(){Command=Path.Combine(root,"src/BuilderCrap/Builder.Mcp.Server/bin/Debug/net10.0-windows/Builder.Mcp.Server.exe"),Arguments=["--attach",name]}));
+            var launcher=JsonNode.Parse(config.Text)!["mcpServers"]!["3d-buildercrap"]!;
+            client=await McpClient.CreateAsync(new StdioClientTransport(new(){
+                Command=launcher["command"]!.GetValue<string>(),
+                Arguments=launcher["args"]!.AsArray().Select(arg=>arg!.GetValue<string>()).ToArray()}));
             var queried=await McpCall(client,"builder_scene");Assert(queried["state"]!["contentId"]!.GetValue<string>()==editor.Snapshot.Scene.ContentId.ToString(),"Desktop and MCP have different document");
             Capture("mcp-view-access",1040,680);
             Pass("View offers reachable opt-in local access at minimum client size; disabled startup, explicit same-user/file-permission rules and copyable per-window stdio configuration precede shared-session attachment");
@@ -57,7 +60,7 @@ internal static partial class Program
             var view=editor.Presentation.Snapshot;
             await McpCall(client,"builder_view",new{settings=view.Settings with{Wireframe=true},expectedPresentationRevision=view.Revision});
             Assert(Named<CheckBox>("ViewWireframe").IsChecked==true&&Named<TextBox>("SizeX").Text=="33","Remote View did not sync controls or retain local draft");
-            Click(Named<Button>("CancelTransformButton"));await Idle();
+            Click(Named<Button>("DiscardTransformButton"));await Idle();
             Named<TextBox>("ObjectName").Text="Unaccepted group draft";
             await McpCall(client,"builder_undo",new{expectedRevision=editor.Snapshot.Revision},"Conflict");Assert(Named<TextBox>("ObjectName").Text=="Unaccepted group draft","Rename draft lost");Refresh();
             typeof(MainWindow).GetField("documentPromptActive",PrivateInstance)!.SetValue(window,true);
@@ -69,7 +72,7 @@ internal static partial class Program
             await McpPrivate("StopMcp");await Idle();
             Assert(McpHost is null&&editor.Snapshot.Preview is null&&ReferenceEquals(editor.Snapshot.Scene,accepted.Scene)&&editor.Snapshot.CanUndo==accepted.CanUndo,"Stop changed accepted document/history");
             Assert(Named<FrameworkElement>("McpPreviewActions").Visibility==Visibility.Collapsed,"Remote footer leaked after Stop");
-            Click(Named<Button>("MoveHandleButton"));await Idle();Assert(Named<FrameworkElement>("TransformActions").Visibility==Visibility.Visible,"Local tools did not resume after Stop");Click(Named<Button>("CancelTransformButton"));
+            Click(Named<Button>("MoveHandleButton"));Named<TextBox>("PositionX").Text="11.25";await Idle();Assert(Named<FrameworkElement>("TransformDraftActions").Visibility==Visibility.Visible,"Local tools did not resume after Stop");Click(Named<Button>("DiscardTransformButton"));
             Pass("Stop cancels attachment and its private preview while retaining accepted scene/history; remote footer clears and ordinary desktop editing resumes");
         }
         finally{if(McpHost is not null)await McpPrivate("StopMcp");if(client is not null)await client.DisposeAsync();dialog.Close();}

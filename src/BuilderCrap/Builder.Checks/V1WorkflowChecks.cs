@@ -61,7 +61,7 @@ internal static class V1WorkflowChecks
             }
         }
         Pass("Three pinned real Prusa parts retain Strict default refusal, explicitly import geometry-only in mm, cancel/apply/Undo/Redo placement, diagnose and save/export/reopen3MF/STL; explicit-mode Insert remains safe");
-        using(var session=new EditorSession(Path.Combine(root,"src/BuilderCrap/Builder.GeometryWorker/bin/win-x64/Builder.GeometryWorker.exe")))
+        using(var session=new EditorSession())
         {
             Ok(await session.OpenAsync(repairInput,ModelUnit.Millimeters));var before=session.Snapshot;var part=before.Scene.Objects.Single();
             var diagnosis=await session.DiagnoseAsync(part.Id,expectedRevision:before.Revision);Ok(diagnosis.Result);Check(diagnosis.Diagnosis is not null&&diagnosis.Diagnosis.Assessment.BoundaryEdges>0,"Missing-top fixture did not diagnose as open.");Same(session,before);

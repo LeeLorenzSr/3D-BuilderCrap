@@ -131,7 +131,7 @@ public partial class MainWindow
         CancelHollowButton.IsEnabled=!hollowCancelRequested;
         if(candidate?.Scene.Objects.FirstOrDefault(o=>o.Id==hollowTarget) is {} shown)
         {var plane=HollowPlane(shown);HollowSectionLabel.Text=$"Inspection plane: {"XYZ"[plane.Axis]} = {Number(plane.PositionMillimeters)} mm";}
-        Toolbar.IsEnabled=ObjectList.IsEnabled=false;ObjectsOverview.Visibility=EditPanel.Visibility=ConstructionTools.Visibility=InspectionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
+        Toolbar.IsEnabled=ObjectList.IsEnabled=false;ObjectsOverview.Visibility=ConstructionTools.Visibility=InspectionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
         PreviewBanner.Visibility=candidate==null?Visibility.Collapsed:Visibility.Visible;
         PreviewLabel.Text=HollowCutaway.IsChecked==true?"Cutaway inspection only · result remains sealed":"Hollow preview · sealed shell not yet applied";EmptyHint.Visibility=Visibility.Collapsed;
     }

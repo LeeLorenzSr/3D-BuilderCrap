@@ -3,6 +3,7 @@ using Builder.Mcp;
 using ModelContextProtocol;
 using ModelContextProtocol.Client;
 using System.Collections.Immutable;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -20,7 +21,9 @@ internal static partial class Program
         if(args.Length!=2){Console.Error.WriteLine("Usage: Builder.Mcp.Checks <repo-root> <fresh-evidence-directory>");return 2;}
         root=Path.GetFullPath(args[0]);output=Path.GetFullPath(args[1]);
         if(File.Exists(Path.Combine(output,"results.json")))throw new IOException("Choose a fresh evidence directory.");
-        Directory.CreateDirectory(output);server=Path.Combine(root,"src/BuilderCrap/Builder.Mcp.Server/bin/Debug/net10.0-windows/Builder.Mcp.Server.exe");
+        Directory.CreateDirectory(output);
+        var configuration=typeof(Program).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()!.Configuration;
+        server=Path.Combine(root,"src/BuilderCrap/Builder.Mcp.Server/bin",configuration,"net10.0-windows/Builder.Mcp.Server.exe");
         try
         {
             await Headless();await PreviewFamilies();await SharedPipe();
@@ -38,7 +41,11 @@ internal static partial class Program
         var wiretap=Environment.GetEnvironmentVariable("MCP_CHECK_WIRETAP");
         var command=wiretap is null?server:Path.Combine(root,".local/verification-venv/Scripts/python.exe");
         var arguments=wiretap is null?args:new[]{wiretap,Path.Combine(output,"wire-"+Guid.NewGuid().ToString("N")+".log"),server}.Concat(args).ToArray();
-        return await McpClient.CreateAsync(new StdioClientTransport(new(){Command=command,Arguments=arguments,ShutdownTimeout=TimeSpan.FromSeconds(3)}),cancellationToken:Ct);
+        // The SDK starts Windows stdio clients through a shell. Keep the executable
+        // token free of spaces when the recovery-directory argument also needs quoting.
+        return await McpClient.CreateAsync(new StdioClientTransport(new(){
+            WorkingDirectory=Path.GetDirectoryName(command), Command=@".\"+Path.GetFileName(command),
+            Arguments=arguments, ShutdownTimeout=TimeSpan.FromSeconds(3)}),cancellationToken:Ct);
     }
     private static Dictionary<string,object?> Arguments(object value)
         =>JsonSerializer.SerializeToElement(value,value.GetType(),McpJson.Options).EnumerateObject().ToDictionary(p=>p.Name,p=>(object?)p.Value);

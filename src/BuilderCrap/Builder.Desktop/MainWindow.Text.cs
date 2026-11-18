@@ -139,7 +139,7 @@ public partial class MainWindow
         ApplyTextButton.IsEnabled=candidate!=null&&!textDraftChanged&&operation==null&&!textCancelRequested&&editor.Snapshot.Revision==textBaseRevision;
         CancelTextButton.IsEnabled=!textCancelRequested;
         Toolbar.IsEnabled=ObjectList.IsEnabled=false;
-        ObjectsOverview.Visibility=EditPanel.Visibility=ConstructionTools.Visibility=InspectionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
+        ObjectsOverview.Visibility=ConstructionTools.Visibility=InspectionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
         PreviewBanner.Visibility=candidate==null?Visibility.Collapsed:Visibility.Visible;PreviewLabel.Text=emboss?"Emboss preview · not yet applied":"Text preview · not yet added";
         EmptyHint.Visibility=Visibility.Collapsed;
     }

@@ -67,13 +67,17 @@ public sealed partial class EditorSession
                 return "Ready to close this document.";
             }
             Scene candidate;
+            var hasAdditionalPackageData = false;
             if(restoreClaim is not null)
             {
                 candidate=recoveryScene!;progress?.Report(new("Ready to restore recovery"));cancellation.ThrowIfCancellationRequested();
             }
             else if(request is OpenDocumentTransition opening)
             {
-                candidate=ModelFiles.Read(openPath!,opening.Unit,cancellation,progress,opening.StlMode);candidate.Validate(cancellation);
+                var imported = ModelFiles.Read(openPath!,opening.Unit,cancellation,progress,opening.StlMode);
+                candidate = imported.Scene;
+                hasAdditionalPackageData = imported.HasAdditionalPackageData;
+                candidate.Validate(cancellation);
                 progress?.Report(new("Ready to open"));cancellation.ThrowIfCancellationRequested();
             }
             else
@@ -93,10 +97,12 @@ public sealed partial class EditorSession
                 {
                     scene=candidate;selected=candidate.Objects.FirstOrDefault()?.Id;editingGroupId=null;
                     selectedIds=selected is {} id?candidate.ExpandObjectIds([id]):[];
-                    path=openPath is not null&&Path.GetExtension(openPath).Equals(".3mf",StringComparison.OrdinalIgnoreCase)?openPath:null;savedContent=scene.ContentId;
+                    path=openPath is not null&&!hasAdditionalPackageData&&Path.GetExtension(openPath).Equals(".3mf",StringComparison.OrdinalIgnoreCase)?openPath:null;savedContent=scene.ContentId;
                 }
                 undo.Clear();redo.Clear();revision++;resultRevision=revision;closeReadyRevision=null;
             }
+            if (hasAdditionalPackageData)
+                return "Opened the editable model from "+Path.GetFileName(openPath)+". Additional project data stays in the original 3MF. Save your edits to a new file.";
             return restoreClaim is not null?"Recovered accepted work. Review it and save when ready.":request is OpenDocumentTransition opened?"Opened "+Path.GetFileName(openPath)+"."+
                 (opened.StlMode==StlImportMode.GeometryOnly&&Path.GetExtension(openPath!).Equals(".stl",StringComparison.OrdinalIgnoreCase)?" Geometry only: STL attribute/color data was not imported.":""):"New empty scene created.";
         },request?.ExpectedRevision,preflight:()=>

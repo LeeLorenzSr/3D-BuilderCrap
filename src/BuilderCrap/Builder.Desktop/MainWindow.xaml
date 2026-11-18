@@ -1,5 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Builder.Desktop" x:Class="Builder.Desktop.MainWindow" Style="{DynamicResource {x:Type Window}}" Title="3D BuilderCrap" Icon="Assets/BuilderCrap.ico" Width="1280" Height="820" MinWidth="1040" MinHeight="720" WindowStartupLocation="CenterScreen" PreviewKeyDown="OnKeyDown" Closing="OnClosing">
+  <Window.Resources>
+    <Style x:Key="HudAxisLabel" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource AccentText}"/><Setter Property="FontSize" Value="10"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="Margin" Value="0,0,0,1"/>
+    </Style>
+    <Style x:Key="HudNumber" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+      <Setter Property="FontSize" Value="13"/><Setter Property="MinHeight" Value="23"/><Setter Property="Padding" Value="1,0"/>
+      <Setter Property="Margin" Value="0"/><Setter Property="TextAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="BorderThickness" Value="0,0,0,2"/><Setter Property="Background" Value="{DynamicResource Ink}"/><Setter Property="Foreground" Value="{DynamicResource AccentText}"/>
+      <Setter Property="CaretBrush" Value="{DynamicResource AccentText}"/>
+      <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TransformNumberMouseDown"/>
+      <EventSetter Event="GotKeyboardFocus" Handler="TransformNumberFocused"/>
+    </Style>
+    <Style x:Key="HudMode" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Width" Value="38"/><Setter Property="Height" Value="38"/><Setter Property="Margin" Value="0"/>
+      <Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocus}"/>
+      <Setter Property="Template"><Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="ModeChrome" Background="{TemplateBinding Background}" CornerRadius="2">
+            <local:SvgIcon Key="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(local:Icon.Key)}" Width="20" Height="20" Foreground="{DynamicResource AccentText}"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ModeChrome" Property="Background" Value="{DynamicResource MutedInk}"/></Trigger>
+            <Trigger Property="FontWeight" Value="Bold"><Setter TargetName="ModeChrome" Property="Background" Value="{DynamicResource Accent}"/></Trigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="ModeChrome" Property="Opacity" Value="0.5"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value></Setter>
+    </Style>
+  </Window.Resources>
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -7,62 +38,36 @@
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
-    <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Background="{DynamicResource ChromeFFFFFFFF}" Padding="14,6" Name="FileStrip">
-      <DockPanel LastChildFill="False">
-        <Button Name="HelpButton" DockPanel.Dock="Right" Content="Help" ToolTip="Help and version (F1)" AutomationProperties.Name="Help and version" Click="HelpClick" MinHeight="30" Padding="10,5"/>
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,18,0">
-          <local:SvgIcon Key="app-mark" Width="26" Height="26" Margin="0,0,9,0"/>
-          <TextBlock Text="3D BuilderCrap" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center"/>
-        </StackPanel>
-        <StackPanel Name="Toolbar" Orientation="Horizontal">
-          <Button Name="NewButton" local:Icon.Key="add" Content="_New" ToolTip="New empty scene (Ctrl+N)" Click="NewClick" MinHeight="30" Padding="10,5"/>
-          <Menu Background="Transparent" VerticalAlignment="Center" Margin="0,0,6,0" KeyboardNavigation.TabNavigation="Continue">
-            <MenuItem Name="RecentFilesMenu" Header="_Recent ▾" AutomationProperties.Name="Recent model files" Padding="8,7"/>
-          </Menu>
-          <Button local:Icon.Key="open" Content="Open…" ToolTip="Open STL, OBJ, PLY, glTF/GLB or 3MF (Ctrl+O)" AutomationProperties.Name="Open model" Click="OpenClick" MinHeight="30" Padding="10,5" />
-          <Button local:Icon.Key="save" Name="SaveButton" Content="_Save" ToolTip="Save names and display materials as 3MF (Ctrl+S)" Click="SaveClick" MinHeight="30" Padding="10,5" />
-          <Button local:Icon.Key="save-as" Name="SaveAsButton" Content="Save as…" ToolTip="Save scene as another 3MF (Ctrl+Shift+S)" Click="SaveAsClick" MinHeight="30" Padding="10,5" />
-          <Button local:Icon.Key="export" Name="ExportButton" Content="Export…" ToolTip="Export all objects as STL geometry, OBJ, PLY or glTF/GLB with supported display colors; save 3MF to keep model information" Click="ExportClick" MinHeight="30" Padding="10,5" />
-          <Border Width="1" Background="{DynamicResource Line}" Margin="6,4,12,4" />
-          <Button local:Icon.Key="undo" Name="UndoButton" Content="Undo" ToolTip="Undo scene edit (Ctrl+Z)" Style="{StaticResource QuietButton}" Click="UndoClick" MinHeight="30" Padding="10,5" />
-          <Button local:Icon.Key="redo" Name="RedoButton" Content="Redo" ToolTip="Redo scene edit (Ctrl+Y)" Style="{StaticResource QuietButton}" Click="RedoClick" MinHeight="30" Padding="10,5" />
-        </StackPanel>
-      </DockPanel>
-    </Border>
+    <Menu Grid.Row="1" Panel.ZIndex="1" Name="FileStrip" HorizontalAlignment="Left" VerticalAlignment="Top"
+          Height="42" Background="Transparent" IsEnabled="{Binding IsEnabled, ElementName=Toolbar}">
+      <MenuItem Name="FileMenu" AutomationProperties.Name="File menu" ToolTip="File" Padding="13,10">
+        <MenuItem.Header><Path Data="M0,0 H16 M0,5 H16 M0,10 H16" Stroke="{DynamicResource BarInk}" StrokeThickness="1.5" VerticalAlignment="Center"/></MenuItem.Header>
+        <MenuItem Name="NewButton" Header="_New" InputGestureText="Ctrl+N" Click="NewClick"/>
+        <MenuItem Name="OpenButton" Header="_Open…" InputGestureText="Ctrl+O" Click="OpenClick" AutomationProperties.Name="Open model"/>
+        <MenuItem Name="RecentFilesMenu" Header="_Recent" AutomationProperties.Name="Recent model files"/>
+        <Separator/>
+        <MenuItem Header="_Save" InputGestureText="Ctrl+S" IsEnabled="{Binding IsEnabled, ElementName=SaveButton}" Click="SaveClick"/>
+        <MenuItem Name="SaveAsButton" Header="Save _as…" InputGestureText="Ctrl+Shift+S" Click="SaveAsClick"/>
+        <MenuItem Name="ExportButton" Header="_Export…" Click="ExportClick"/>
+      </MenuItem>
+    </Menu>
+    <StackPanel Name="Toolbar" Grid.Row="1" Panel.ZIndex="1" HorizontalAlignment="Right" VerticalAlignment="Top" Orientation="Horizontal" Height="42">
+      <Button Name="HelpButton" Style="{StaticResource HeaderIconButton}" local:Icon.Key="info" ToolTip="Help (F1)" AutomationProperties.Name="Help and version" Click="HelpClick"/>
+      <Button Name="SaveButton" Style="{StaticResource HeaderIconButton}" local:Icon.Key="save" ToolTip="Save (Ctrl+S)" AutomationProperties.Name="Save" Click="SaveClick"/>
+      <Button Name="UndoButton" Style="{StaticResource HeaderIconButton}" local:Icon.Key="undo" ToolTip="Undo (Ctrl+Z)" AutomationProperties.Name="Undo" Click="UndoClick"/>
+      <Button Name="RedoButton" Style="{StaticResource HeaderIconButton}" local:Icon.Key="redo" ToolTip="Redo (Ctrl+Y)" AutomationProperties.Name="Redo" Click="RedoClick"/>
+    </StackPanel>
     <TabControl Name="WorkspaceTabs" Grid.Row="1" SelectionChanged="WorkspaceTabChanged" Style="{StaticResource WorkspaceTabControl}" AutomationProperties.Name="Workspace commands" SelectedIndex="0">
       <TabItem Name="InsertWorkspaceTab" Header="_Insert" AutomationProperties.Name="Insert workspace">
-        <Border Background="{DynamicResource ChromeF8FAFB}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="14,7,14,9">
-          <StackPanel Name="InsertCommands" Orientation="Horizontal" MinHeight="72">
+        <Border Background="{DynamicResource RibbonSurface}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="7,3">
+          <StackPanel Name="InsertCommands" Orientation="Horizontal" MinHeight="36">
             <StackPanel Margin="0,0,16,0">
-              <Menu Background="#00FFFFFF" VerticalAlignment="Center" KeyboardNavigation.TabNavigation="Continue" AutomationProperties.Name="Add primitive" HorizontalAlignment="Left" Margin="0,0,0,3">
-                <FrameworkElement.Resources>
-                  <ResourceDictionary>
-                    <Style x:Key="{x:Type MenuItem}" TargetType="{x:Type MenuItem}">
-                      <Setter Property="Padding" Value="10,8" />
-                    </Style>
-                  </ResourceDictionary>
-                </FrameworkElement.Resources>
-                <MenuItem Name="AddShapeMenu" Header="_Shapes ▾" ToolTip="Add a primitive to the scene" AutomationProperties.Name="Add shape menu" Background="Transparent" BorderBrush="{DynamicResource Line}" BorderThickness="0" Padding="2,1" MinHeight="18">
-                  <MenuItem Header="Cube" AutomationProperties.Name="Add cube" Click="AddCubeClick" ><MenuItem.Icon><local:SvgIcon Key="cube" Width="18" Height="18"/></MenuItem.Icon></MenuItem>
-                  <MenuItem Header="Cylinder" AutomationProperties.Name="Add cylinder" Click="AddCylinderClick" ><MenuItem.Icon><local:SvgIcon Key="cylinder" Width="18" Height="18"/></MenuItem.Icon></MenuItem>
-                  <MenuItem Header="Sphere" AutomationProperties.Name="Add sphere" Click="AddSphereClick" ><MenuItem.Icon><local:SvgIcon Key="sphere" Width="18" Height="18"/></MenuItem.Icon></MenuItem>
-                  <MenuItem Header="Pyramid" Tag="Pyramid" Click="AddShapeClick" ><MenuItem.Icon><local:SvgIcon Key="pyramid" Width="18" Height="18"/></MenuItem.Icon></MenuItem>
-                  <MenuItem Header="Cone" Tag="Cone" Click="AddShapeClick" ><MenuItem.Icon><local:SvgIcon Key="cone" Width="18" Height="18"/></MenuItem.Icon></MenuItem>
-                  <MenuItem Header="Hexagon" Tag="Hexagon" Click="AddShapeClick" ><MenuItem.Icon><local:SvgIcon Key="hexagon" Width="18" Height="18"/></MenuItem.Icon></MenuItem>
-                  <MenuItem Header="Wedge" Tag="Wedge" Click="AddShapeClick" ><MenuItem.Icon><local:SvgIcon Key="wedge" Width="18" Height="18"/></MenuItem.Icon></MenuItem>
-                  <MenuItem Header="Torus" Tag="Torus" Click="AddShapeClick" ><MenuItem.Icon><local:SvgIcon Key="torus" Width="18" Height="18"/></MenuItem.Icon></MenuItem>
-                  <MenuItem Header="Tetrahedron" Tag="Tetrahedron" Click="AddShapeClick" ><MenuItem.Icon><local:SvgIcon Key="tetrahedron" Width="18" Height="18"/></MenuItem.Icon></MenuItem>
-                  <Separator />
-                  <MenuItem Header="New text…" Click="NewTextClick" AutomationProperties.Name="Create new text" ><MenuItem.Icon><local:SvgIcon Key="text" Width="18" Height="18"/></MenuItem.Icon></MenuItem>
-                  <MenuItem Header="Image…" Click="ImageReliefClick" AutomationProperties.Name="Convert an image to relief contour edge or stamp" ><MenuItem.Icon><local:SvgIcon Key="image-relief" Width="18" Height="18"/></MenuItem.Icon></MenuItem>
-                </MenuItem>
-              </Menu>
-              <UniformGrid Name="InsertShapePalette" Columns="9" Width="666">
-                <Button Name="PaletteCubeButton" Tag="Cube" Click="AddShapeClick" Style="{StaticResource ShapePaletteButton}" AutomationProperties.Name="Create cube" Content="Cube" local:Icon.Key="cube"/>
-                <Button Name="PaletteCylinderButton" Tag="Cylinder" Click="AddShapeClick" Style="{StaticResource ShapePaletteButton}" AutomationProperties.Name="Create cylinder" Content="Cylinder" local:Icon.Key="cylinder"/>
+              <UniformGrid Name="InsertShapePalette" Columns="9" Width="654">
+                <Button Name="PaletteCubeButton" Tag="Cube" Click="AddCubeClick" Style="{StaticResource ShapePaletteButton}" AutomationProperties.Name="Create cube" Content="Cube" local:Icon.Key="cube"/>
+                <Button Name="PaletteCylinderButton" Tag="Cylinder" Click="AddCylinderClick" Style="{StaticResource ShapePaletteButton}" AutomationProperties.Name="Create cylinder" Content="Cylinder" local:Icon.Key="cylinder"/>
                 <Button Name="PalettePyramidButton" Tag="Pyramid" Click="AddShapeClick" Style="{StaticResource ShapePaletteButton}" AutomationProperties.Name="Create pyramid" Content="Pyramid" local:Icon.Key="pyramid"/>
                 <Button Name="PaletteConeButton" Tag="Cone" Click="AddShapeClick" Style="{StaticResource ShapePaletteButton}" AutomationProperties.Name="Create cone" Content="Cone" local:Icon.Key="cone"/>
-                <Button Name="PaletteSphereButton" Tag="Sphere" Click="AddShapeClick" Style="{StaticResource ShapePaletteButton}" AutomationProperties.Name="Create sphere" Content="Sphere" local:Icon.Key="sphere"/>
+                <Button Name="PaletteSphereButton" Tag="Sphere" Click="AddSphereClick" Style="{StaticResource ShapePaletteButton}" AutomationProperties.Name="Create sphere" Content="Sphere" local:Icon.Key="sphere"/>
                 <Button Name="PaletteHexagonButton" Tag="Hexagon" Click="AddShapeClick" Style="{StaticResource ShapePaletteButton}" AutomationProperties.Name="Create hexagon" Content="Hexagon" local:Icon.Key="hexagon"/>
                 <Button Name="PaletteWedgeButton" Tag="Wedge" Click="AddShapeClick" Style="{StaticResource ShapePaletteButton}" AutomationProperties.Name="Create wedge" Content="Wedge" local:Icon.Key="wedge"/>
                 <Button Name="PaletteTorusButton" Tag="Torus" Click="AddShapeClick" Style="{StaticResource ShapePaletteButton}" AutomationProperties.Name="Create torus" Content="Torus" local:Icon.Key="torus"/>
@@ -70,7 +75,7 @@
               </UniformGrid>
             </StackPanel>
             <StackPanel Margin="0,0,16,0">
-              <TextBlock Text="Create / import" FontSize="11" Foreground="{DynamicResource MutedInk}" Margin="0,0,0,4" />
+
               <StackPanel Orientation="Horizontal">
                 <Button local:Icon.Key="text" Name="NewTextButton" Content="Text…" Click="NewTextClick" Style="{StaticResource RibbonCommandButton}" />
                 <Button local:Icon.Key="image-relief" Name="ImageReliefButton" Content="Image…" Click="ImageReliefClick" Style="{StaticResource RibbonCommandButton}" />
@@ -81,52 +86,34 @@
         </Border>
       </TabItem>
       <TabItem Name="ObjectWorkspaceTab" Header="_Object" AutomationProperties.Name="Object workspace">
-        <Border Background="{DynamicResource ChromeF8FAFB}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="14,7,14,9">
-          <StackPanel Name="ObjectCommands" Orientation="Horizontal" MinHeight="72">
-            <StackPanel Margin="0,0,16,0">
-              <TextBlock Text="Transform" FontSize="11" Foreground="{DynamicResource MutedInk}" Margin="0,0,0,4" />
-              <StackPanel Name="HandleTools" Orientation="Horizontal" AutomationProperties.Name="Transform tools">
-                <Button local:Icon.Key="move" Name="MoveHandleButton" Content="Move" Style="{StaticResource RibbonCommandButton}" ToolTip="Move on world axes. Drag an axis handle and release to preview." AutomationProperties.Name="Move handles" Click="MoveHandleClick" />
-                <Button local:Icon.Key="rotate" Name="RotateHandleButton" Content="Rotate" Style="{StaticResource RibbonCommandButton}" ToolTip="Rotate around world axes. Drag a rotation handle and release to preview." AutomationProperties.Name="Rotation handles" Click="RotateHandleClick" />
-                <Button local:Icon.Key="scale" Name="ScaleHandleButton" Content="Scale" Style="{StaticResource RibbonCommandButton}" ToolTip="Scale on world axes. Drag an axis handle and release to preview." AutomationProperties.Name="Scale handles" Click="ScaleHandleClick" />
-                <Button local:Icon.Key="bed" Name="BedButton" Content="Place on bed" Click="BedClick" Style="{StaticResource RibbonCommandButton}" />
-              </StackPanel>
-              <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                <Button local:Icon.Key="align" Name="CenterOnPlateButton" Content="Center on plate…" Click="CenterOnPlateClick" ToolTip="Center selected objects, groups or members on world X=0, Y=0" MinHeight="28" Padding="8,4" Margin="0,0,4,0"/>
-                <Button local:Icon.Key="duplicate" Name="RadialArrayButton" Content="Radial array…" Click="RadialArrayClick" ToolTip="Repeat the selected set around a world-axis pivot" MinHeight="28" Padding="8,4"/>
-              </StackPanel>
+        <Border Background="{DynamicResource RibbonSurface}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="7,3">
+          <StackPanel Name="ObjectCommands" Orientation="Horizontal" MinHeight="36">
+            <StackPanel Name="EditActions" Orientation="Horizontal">
+              <Button Style="{StaticResource RibbonCommandButton}" local:Icon.Key="duplicate" Name="DuplicateButton" Content="Duplicate" ToolTip="Duplicate selected objects and groups (Ctrl+D)" Click="DuplicateClick" MinHeight="28" Padding="8,4" Margin="0,0,4,0" />
+              <Button Style="{StaticResource RibbonCommandButton}" local:Icon.Key="delete" Name="DeleteButton" Content="Delete" ToolTip="Delete selected objects and groups (Delete)" Click="DeleteClick" MinHeight="28" Padding="8,4" Margin="0,0,4,0" />
             </StackPanel>
-            <StackPanel Margin="0,0,16,0">
-              <TextBlock Text="Organize" FontSize="11" Foreground="{DynamicResource MutedInk}" Margin="0,0,0,4" />
-              <StackPanel Name="EditActions" Orientation="Horizontal">
-                <Button local:Icon.Key="duplicate" Name="DuplicateButton" Content="Duplicate" ToolTip="Duplicate selected objects and groups (Ctrl+D)" Click="DuplicateClick" MinHeight="28" Padding="8,4" Margin="0,0,4,0" />
-                <Button local:Icon.Key="duplicate" Name="ArrayButton" Content="Array…" ToolTip="Preview a rectangular array of the selected objects, groups or members" Click="ArrayClick" MinHeight="28" Padding="8,4" Margin="0,0,4,0" />
-                <Button local:Icon.Key="delete" Name="DeleteButton" Content="Delete" ToolTip="Delete selected objects and groups (Delete)" Click="DeleteClick" MinHeight="28" Padding="8,4" Margin="0,0,4,0" />
-                <Button local:Icon.Key="edit-members" Name="EditMembersButton" Content="Edit members…" Margin="0,0,4,0" Padding="8,4" ToolTip="Select and edit individual members while preserving their group" AutomationProperties.Name="Edit selected group members" Click="EnterGroupClick" MinHeight="28" />
-              </StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <Button local:Icon.Key="group" Name="GroupButton" Content="Group…" ToolTip="Review grouping selected objects; meshes remain separate" Click="GroupClick" MinHeight="28" Padding="9,4" />
-                <Button local:Icon.Key="ungroup" Name="UngroupButton" Content="Ungroup…" ToolTip="Review making group members independent" Click="UngroupClick" MinHeight="28" Padding="9,4" />
-                <Button local:Icon.Key="align" Name="AlignButton" Content="Align…" ToolTip="Align selected objects or groups on world axes" Click="AlignClick" MinHeight="28" Padding="9,4" />
-                <Button local:Icon.Key="align" Name="DistributeButton" Content="Distribute…" ToolTip="Evenly space at least three selected objects, groups or members" Click="DistributeClick" MinHeight="28" Padding="9,4" />
-              </StackPanel>
+            <Border Name="EditActionsDivider" Height="22" Background="{DynamicResource BarDisabled}" Width="1" Margin="4,0"/>
+            <StackPanel Name="HandleTools" Orientation="Horizontal">
+              <Button Style="{StaticResource RibbonCommandButton}" local:Icon.Key="bed" Name="BedButton" Content="Settle" Click="BedClick" Padding="9,4" MinHeight="28" ToolTip="Move the lowest point of the selection to the build plate. Keeps its orientation." />
             </StackPanel>
-            <Border Name="EditActionsDivider" Height="58" Background="{DynamicResource Line}" Width="1" Margin="0,7,14,0" />
-            <StackPanel Margin="0,0,16,0">
-              <TextBlock Text="Inspect" FontSize="11" Foreground="{DynamicResource MutedInk}" Margin="0,0,0,4" />
-              <StackPanel Name="InspectionTools" Orientation="Horizontal">
-                <Button local:Icon.Key="mirror" Name="MirrorButton" Content="Mirror…" ToolTip="Preview a reflection of the selected objects or members across a world plane" Click="MirrorClick" Style="{StaticResource RibbonCommandButton}" />
-                <Button local:Icon.Key="measure" Name="MeasureButton" Content="Measure" ToolTip="Pick two surface points to measure a distance in millimeters" Click="MeasureClick" Style="{StaticResource RibbonCommandButton}" />
-              </StackPanel>
+            <StackPanel Name="InspectionTools" Orientation="Horizontal">
+              <Button local:Icon.Key="mirror" Name="MirrorButton" Content="Mirror…" ToolTip="Preview a reflection of the selected objects or members across a world plane" Click="MirrorClick" Style="{StaticResource RibbonCommandButton}" />
+              <Button local:Icon.Key="measure" Name="MeasureButton" Content="Measure" ToolTip="Pick two surface points to measure a distance in millimeters" Click="MeasureClick" Style="{StaticResource RibbonCommandButton}" />
             </StackPanel>
+            <Border Height="22" Background="{DynamicResource BarDisabled}" Width="1" Margin="4,0"/>
+              <Button Style="{StaticResource RibbonCommandButton}" local:Icon.Key="align" Name="CenterOnPlateButton" Content="Center on plate…" Click="CenterOnPlateClick" ToolTip="Center selected objects, groups or members on world X=0, Y=0" MinHeight="28" Padding="8,4" Margin="0,0,4,0"/>
+              <Button Style="{StaticResource RibbonCommandButton}" local:Icon.Key="align" Name="AlignButton" Content="Align…" ToolTip="Align selected objects or groups on world axes" Click="AlignClick" MinHeight="28" Padding="9,4" />
+              <Button Style="{StaticResource RibbonCommandButton}" local:Icon.Key="align" Name="DistributeButton" Content="Distribute…" ToolTip="Evenly space at least three selected objects, groups or members" Click="DistributeClick" MinHeight="28" Padding="9,4" />
+              <Button Style="{StaticResource RibbonCommandButton}" local:Icon.Key="duplicate" Name="ArrayButton" Content="Array…" ToolTip="Preview a rectangular array of the selected objects, groups or members" Click="ArrayClick" MinHeight="28" Padding="8,4" Margin="0,0,4,0" />
+              <Button Style="{StaticResource RibbonCommandButton}" local:Icon.Key="duplicate" Name="RadialArrayButton" Content="Radial array…" Click="RadialArrayClick" ToolTip="Repeat the selected set around a world-axis pivot" MinHeight="28" Padding="8,4"/>
           </StackPanel>
         </Border>
       </TabItem>
       <TabItem Name="EditWorkspaceTab" Header="_Edit" AutomationProperties.Name="Edit workspace">
-        <Border Background="{DynamicResource ChromeF8FAFB}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="14,7,14,9">
-          <StackPanel Name="EditCommands" Orientation="Horizontal" MinHeight="72">
+        <Border Background="{DynamicResource RibbonSurface}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="7,3">
+          <StackPanel Name="EditCommands" Orientation="Horizontal" MinHeight="36">
             <StackPanel Margin="0,0,16,0">
-              <TextBlock Text="Mesh operations" FontSize="11" Foreground="{DynamicResource MutedInk}" Margin="0,0,0,4" />
+
               <Grid Name="ConstructionTools">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="Auto" />
@@ -154,10 +141,10 @@
         </Border>
       </TabItem>
       <TabItem Name="PaintWorkspaceTab" Header="_Paint" AutomationProperties.Name="Paint workspace">
-        <Border Background="{DynamicResource ChromeF8FAFB}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="14,7,14,9">
-          <StackPanel Name="PaintCommands" Orientation="Horizontal" MinHeight="72">
+        <Border Background="{DynamicResource RibbonSurface}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="7,3">
+          <StackPanel Name="PaintCommands" Orientation="Horizontal" MinHeight="36">
             <StackPanel Margin="0,0,20,0">
-              <TextBlock Text="Display color" FontSize="11" Foreground="{DynamicResource MutedInk}" Margin="0,0,0,4"/>
+
               <StackPanel Orientation="Horizontal">
                 <Button Name="MaterialButton" Content="Material…" local:Icon.Key="material" Click="MaterialClick" Style="{StaticResource RibbonCommandButton}" ToolTip="Preview a display color on selected objects, groups or members"/>
                 <Button Name="SurfaceMaterialButton" Content="Surface…" local:Icon.Key="paint" Click="SurfaceMaterialClick" Style="{StaticResource RibbonCommandButton}" ToolTip="Click a connected flat surface to preview its color"/>
@@ -165,18 +152,18 @@
               </StackPanel>
             </StackPanel>
             <StackPanel VerticalAlignment="Center">
-              <TextBlock Name="MaterialSelectionSummary" MaxWidth="670" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" FontWeight="SemiBold" Margin="0,0,0,5"/>
-              <TextBlock Text="3MF keeps names and display colors. Assign print materials in your slicer." Foreground="{DynamicResource MutedInk}" FontSize="12"/>
+              <TextBlock Foreground="{DynamicResource BarInk}" Name="MaterialSelectionSummary" MaxWidth="670" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" FontWeight="SemiBold" Margin="0,0,0,5"/>
+
             </StackPanel>
           </StackPanel>
         </Border>
       </TabItem>
       <TabItem Name="ViewWorkspaceTab" Header="_View" AutomationProperties.Name="View workspace">
-        <Border Background="{DynamicResource ChromeF8FAFB}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="14,7,14,9">
-          <StackPanel Name="ViewCommands" MinHeight="72">
+        <Border Background="{DynamicResource RibbonSurface}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="7,3">
+          <StackPanel Name="ViewCommands" MinHeight="36">
             <StackPanel Orientation="Horizontal">
             <StackPanel Margin="0,0,16,0">
-              <TextBlock Text="Camera" FontSize="11" Foreground="{DynamicResource MutedInk}" Margin="0,0,0,4" />
+
               <StackPanel Orientation="Horizontal" Name="CameraTools">
                 <Button local:Icon.Key="view-isometric" Content="Isometric" Style="{StaticResource RibbonCommandButton}" ToolTip="Isometric view" Click="ViewIsometricClick" Name="ViewIsometricButton" />
                 <Button local:Icon.Key="view-top" Content="Top" Style="{StaticResource RibbonCommandButton}" ToolTip="Look down the Z axis" Click="ViewTopClick" Name="ViewTopButton" />
@@ -188,35 +175,35 @@
               </StackPanel>
             </StackPanel>
             <StackPanel Margin="16,0,0,0">
-              <TextBlock Text="Display" FontSize="11" Foreground="{DynamicResource MutedInk}" Margin="0,0,0,4"/>
+
               <Grid Name="DisplayTools">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition Width="115"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
-                <CheckBox Name="ViewGrid" Content="Grid" IsChecked="True" Checked="ViewSettingsChanged" Unchecked="ViewSettingsChanged" ToolTip="Show the build grid" AutomationProperties.Name="Show grid"/>
-                <CheckBox Name="ViewColors" Grid.Column="1" Content="Colors" IsChecked="True" Checked="ViewSettingsChanged" Unchecked="ViewSettingsChanged" ToolTip="Show assigned object and face colors" AutomationProperties.Name="Show assigned colors"/>
-                <CheckBox Name="ViewWireframe" Grid.Row="1" Content="Wireframe" Checked="ViewSettingsChanged" Unchecked="ViewSettingsChanged" ToolTip="Show actual triangle edges over shaded surfaces" AutomationProperties.Name="Show triangle wireframe"/>
-                <CheckBox Name="ViewXRay" Grid.Row="1" Grid.Column="1" Content="X-ray" Checked="ViewSettingsChanged" Unchecked="ViewSettingsChanged" ToolTip="Make surfaces translucent to inspect inside" AutomationProperties.Name="Show X-ray transparency"/>
-                <CheckBox Name="ViewShadows" Grid.Row="2" Content="Shadows" IsChecked="True" Checked="ViewSettingsChanged" Unchecked="ViewSettingsChanged" ToolTip="Cast display-only shadows onto the build plane. Meshes and saved files stay unchanged." AutomationProperties.Name="Show build-plate shadows"/>
-                <CheckBox Name="ViewReflections" Grid.Row="2" Grid.Column="1" Content="Reflections" Checked="ViewSettingsChanged" Unchecked="ViewSettingsChanged" ToolTip="Show a subdued display-only reflection below the build plane. Meshes and saved files stay unchanged." AutomationProperties.Name="Show build-plate reflections"/>
+                <CheckBox Foreground="{DynamicResource BarInk}" Name="ViewGrid" Content="Grid" IsChecked="True" Checked="ViewSettingsChanged" Unchecked="ViewSettingsChanged" ToolTip="Show the build grid" AutomationProperties.Name="Show grid"/>
+                <CheckBox Foreground="{DynamicResource BarInk}" Name="ViewColors" Grid.Column="1" Content="Colors" IsChecked="True" Checked="ViewSettingsChanged" Unchecked="ViewSettingsChanged" ToolTip="Show assigned object and face colors" AutomationProperties.Name="Show assigned colors"/>
+                <CheckBox Foreground="{DynamicResource BarInk}" Name="ViewWireframe" Grid.Row="1" Content="Wireframe" Checked="ViewSettingsChanged" Unchecked="ViewSettingsChanged" ToolTip="Show actual triangle edges over shaded surfaces" AutomationProperties.Name="Show triangle wireframe"/>
+                <CheckBox Foreground="{DynamicResource BarInk}" Name="ViewXRay" Grid.Row="1" Grid.Column="1" Content="X-ray" Checked="ViewSettingsChanged" Unchecked="ViewSettingsChanged" ToolTip="Make surfaces translucent to inspect inside" AutomationProperties.Name="Show X-ray transparency"/>
+                <CheckBox Foreground="{DynamicResource BarInk}" Name="ViewShadows" Grid.Row="2" Content="Shadows" IsChecked="True" Checked="ViewSettingsChanged" Unchecked="ViewSettingsChanged" ToolTip="Cast display-only shadows onto the build plane. Meshes and saved files stay unchanged." AutomationProperties.Name="Show build-plate shadows"/>
+                <CheckBox Foreground="{DynamicResource BarInk}" Name="ViewReflections" Grid.Row="2" Grid.Column="1" Content="Reflections" Checked="ViewSettingsChanged" Unchecked="ViewSettingsChanged" ToolTip="Show a subdued display-only reflection below the build plane. Meshes and saved files stay unchanged." AutomationProperties.Name="Show build-plate reflections"/>
               </Grid>
             </StackPanel>
             <StackPanel Margin="16,0,0,0">
-              <TextBlock Text="Shading" FontSize="11" Foreground="{DynamicResource MutedInk}" Margin="0,0,0,4"/>
-              <RadioButton Name="ViewShadingFlat" Content="Flat" GroupName="ViewShading" IsChecked="True" Checked="ViewShadingChanged" MinHeight="26" ToolTip="Display only: show each triangle's face normal. Mesh unchanged." AutomationProperties.Name="Flat display shading"/>
-              <RadioButton Name="ViewShadingSmooth" Content="Smooth" GroupName="ViewShading" Checked="ViewShadingChanged" MinHeight="26" ToolTip="Display only: average normals at coincident corners. Mesh unchanged." AutomationProperties.Name="Smooth display shading"/>
+
+              <RadioButton Foreground="{DynamicResource BarInk}" Name="ViewShadingFlat" Content="Flat" GroupName="ViewShading" IsChecked="True" Checked="ViewShadingChanged" MinHeight="26" ToolTip="Display only: show each triangle's face normal. Mesh unchanged." AutomationProperties.Name="Flat display shading"/>
+              <RadioButton Foreground="{DynamicResource BarInk}" Name="ViewShadingSmooth" Content="Smooth" GroupName="ViewShading" Checked="ViewShadingChanged" MinHeight="26" ToolTip="Display only: average normals at coincident corners. Mesh unchanged." AutomationProperties.Name="Smooth display shading"/>
             </StackPanel>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
-              <Button Name="ResetDisplayButton" Content="Reset display" local:Icon.Key="undo" Click="ResetDisplayClick" Style="{StaticResource QuietButton}" MinHeight="28" Padding="8,4" ToolTip="Restore and remember defaults: grid, colors and shadows on; wireframe, X-ray and reflections off; flat shading. Camera unchanged."/>
+              <Button Name="ResetDisplayButton" Content="Reset display" local:Icon.Key="undo" Click="ResetDisplayClick" Style="{StaticResource RibbonCommandButton}" MinHeight="28" Padding="8,4" ToolTip="Restore and remember defaults: grid, colors and shadows on; wireframe, X-ray and reflections off; flat shading. Camera unchanged."/>
               <Border Width="1" Background="{DynamicResource Line}" Margin="7,2,14,2"/>
-              <Button Name="AboutModelButton" Content="About this model…" local:Icon.Key="info" Click="AboutModelClick" Style="{StaticResource QuietButton}" MinHeight="28" Padding="8,4" ToolTip="Edit document-wide title, designer, description and attribution"/>
-              <Button Name="RecoverButton" Content="Recover unsaved work…" local:Icon.Key="undo" Click="RecoverClick" Style="{StaticResource QuietButton}" MinHeight="28" Padding="8,4" ToolTip="Review recovery copies left by previous sessions"/>
-              <Button Name="McpAccessButton" Content="MCP access…" Click="McpAccessClick" Style="{StaticResource QuietButton}" MinHeight="28" Padding="8,4" ToolTip="Enable or stop trusted local MCP clients for this window" AutomationProperties.Name="Local MCP access"/>
-              <TextBlock Name="ViewPreferenceHelp" Text="View choices are remembered. Reset saves defaults; camera unchanged." FontSize="11" Foreground="{DynamicResource MutedInk}" VerticalAlignment="Center" Margin="16,0,0,0" MaxWidth="420" TextWrapping="Wrap"/>
+              <Button Name="AboutModelButton" Content="About this model…" local:Icon.Key="info" Click="AboutModelClick" Style="{StaticResource RibbonCommandButton}" MinHeight="28" Padding="8,4" ToolTip="Edit document-wide title, designer, description and attribution"/>
+              <Button Name="RecoverButton" Content="Recover unsaved work…" local:Icon.Key="undo" Click="RecoverClick" Style="{StaticResource RibbonCommandButton}" MinHeight="28" Padding="8,4" ToolTip="Review recovery copies left by previous sessions"/>
+              <Button Name="McpAccessButton" Content="MCP access…" Click="McpAccessClick" Style="{StaticResource RibbonCommandButton}" MinHeight="28" Padding="8,4" ToolTip="Enable or stop trusted local MCP clients for this window" AutomationProperties.Name="Local MCP access"/>
+              <TextBlock Name="ViewPreferenceHelp" Text="View choices are remembered. Reset saves defaults; camera unchanged." FontSize="11" Foreground="{DynamicResource BarInk}" VerticalAlignment="Center" Margin="16,0,0,0" MaxWidth="420" TextWrapping="Wrap"/>
             </StackPanel>
             <Border Name="ViewPreferenceWarning" Visibility="Collapsed" Background="{DynamicResource ChromeFFF4DB}" BorderBrush="{DynamicResource EdgeD9B66F}" BorderThickness="1" Padding="8,4" Margin="0,6,0,0">
               <DockPanel LastChildFill="True">
-                <Button Name="SaveViewChoicesButton" DockPanel.Dock="Right" Content="Save view choices" Click="SaveViewChoicesClick" Style="{StaticResource QuietButton}" MinHeight="26" Padding="8,3" Margin="12,0,0,0" ToolTip="Save the display choices currently in use. This does not reload the preferences file."/>
+                <Button Name="SaveViewChoicesButton" DockPanel.Dock="Right" Content="Save view choices" Click="SaveViewChoicesClick" Style="{StaticResource RibbonCommandButton}" MinHeight="26" Padding="8,3" Margin="12,0,0,0" ToolTip="Save the display choices currently in use. This does not reload the preferences file."/>
                 <local:AccessibleStatusText x:Name="ViewPreferenceWarningText" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="{DynamicResource WarningInk}" AutomationProperties.LiveSetting="Polite"/>
               </DockPanel>
             </Border>
@@ -227,29 +214,26 @@
     <Grid Grid.Row="2">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="330" />
+        <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
       <Grid>
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto" />
           <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <Border Background="{DynamicResource ChromeF8FAFB}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="18,10">
-          <DockPanel>
-            <StackPanel>
-              <TextBlock Name="SceneTitle" Text="Untitled scene" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
-              <TextBlock Name="SceneSummary" Foreground="{DynamicResource MutedInk}" FontSize="12" Margin="0,4,0,0" />
-            </StackPanel>
-          </DockPanel>
-        </Border>
-        <local:SceneViewport x:Name="ViewportSurface" Grid.Row="1" Background="{DynamicResource ChromeEDF1F4}" ClipToBounds="True" Focusable="True" AutomationProperties.Name="3D scene viewport" AutomationProperties.HelpText="Select objects in the Objects list and use Object tools for numeric editing. Press F to fit the scene." MouseDown="ViewportDown" MouseMove="ViewportMove" MouseUp="ViewportUp" MouseWheel="ViewportWheel" LostMouseCapture="ViewportLostCapture">
+        <local:SceneViewport x:Name="ViewportSurface" Grid.Row="1" Background="{DynamicResource ChromeEDF1F4}" ClipToBounds="True" Focusable="True" AutomationProperties.Name="3D scene viewport" AutomationProperties.HelpText="Select objects to show transform controls. Right-drag to orbit, middle-drag to pan, wheel to zoom. Press F to fit the scene." MouseDown="ViewportDown" MouseMove="ViewportMove" MouseUp="ViewportUp" MouseWheel="ViewportWheel" LostMouseCapture="ViewportLostCapture">
           <Grid>
+            <Border Name="FloorLayer" Background="#606060" IsHitTestVisible="False">
+              <Viewport3D Name="FloorViewport" ClipToBounds="True">
+                <ModelVisual3D><ModelVisual3D.Content><AmbientLight Color="White"/></ModelVisual3D.Content></ModelVisual3D>
+                <ModelVisual3D x:Name="FloorVisual" />
+              </Viewport3D>
+            </Border>
             <Viewport3D Name="Viewport" ClipToBounds="True" IsHitTestVisible="False" />
             <Border Name="DisplayNotice" Background="{DynamicResource ChromeEEF8FAFB}" BorderBrush="{DynamicResource EdgeC9D3DB}" BorderThickness="1" Padding="8,5" Margin="12" HorizontalAlignment="Right" VerticalAlignment="Top" Visibility="Collapsed" IsHitTestVisible="False">
               <TextBlock Text="Assigned colors are hidden. Turn on Colors to review paint." FontSize="12" TextWrapping="Wrap" MaxWidth="290"/>
             </Border>
             <Canvas Name="BrushCursorOverlay" IsHitTestVisible="False" ClipToBounds="True" ToolTip="Approximate brush diameter at the last painted surface depth"/>
-            <Canvas Name="MaterialSelectionOverlay" ClipToBounds="True" IsHitTestVisible="False" AutomationProperties.Name="Selected painted object bounds"/>
             <Canvas Name="TransformOverlay" ClipToBounds="True" IsHitTestVisible="False" AutomationProperties.Name="Transform handles" />
             <Canvas Name="MeasurementOverlay" ClipToBounds="True" IsHitTestVisible="False" Visibility="Collapsed" AutomationProperties.Name="Measurement endpoint markers and line" />
             <Border Name="EmptyHint" Background="{DynamicResource ChromeEAF6F8FA}" Padding="24,20" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
@@ -258,16 +242,138 @@
                 <TextBlock Text="Open an STL, OBJ, PLY, glTF/GLB or 3MF, or add a shape." FontSize="14" Foreground="{DynamicResource MutedInk}" Margin="0,9,0,0" />
               </StackPanel>
             </Border>
-            <Border Background="{DynamicResource ChromeE8FFFFFF}" Padding="10,7" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="16" IsHitTestVisible="False">
-              <TextBlock Text="Ctrl+click to add or remove · Right drag to orbit · Middle drag to pan · Scroll to zoom" Foreground="{DynamicResource MutedInk}" FontSize="11" />
-            </Border>
             <Border Name="PreviewBanner" Background="{DynamicResource ChromeF7FFFFFF}" BorderBrush="{DynamicResource Edge9EBBCC}" BorderThickness="1" Padding="12,9" Margin="16,0,16,64" VerticalAlignment="Bottom" HorizontalAlignment="Left" Visibility="Collapsed" IsHitTestVisible="False">
               <TextBlock Name="PreviewLabel" Text="Preview · not yet applied" FontWeight="SemiBold" />
             </Border>
           </Grid>
         </local:SceneViewport>
+        <Border Name="SettleActions" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="14" Padding="4"
+                Visibility="Collapsed" Background="{DynamicResource RibbonSurface}" CornerRadius="3">
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <Button Name="SettleCancelButton" Content="Cancel" Style="{StaticResource RibbonCommandButton}" local:Icon.Key="cancel" Click="CancelTransformClick" Padding="9,4" MinHeight="32"/>
+            <Button Name="SettleConfirmButton" Content="Settle" ToolTip="Place the lowest point on the build plate" local:Icon.Key="bed" Click="ApplyTransformClick" Style="{StaticResource PrimaryButton}" Padding="10,4" MinHeight="32" Margin="0"/>
+          </StackPanel>
+        </Border>
+        <Border Name="TransformHud" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="12,0,12,16"
+                Visibility="Collapsed" IsVisibleChanged="TransformHudVisibilityChanged">
+          <StackPanel>
+            <Border Name="TransformOptionsPanel" Visibility="Collapsed" HorizontalAlignment="Right" Margin="0,0,0,4" Padding="9,5"
+                    Background="{DynamicResource ChromeFFFFFF}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="3">
+                <StackPanel Name="HandleSettings" Margin="2,5,8,5">
+                  <CheckBox Name="SnapTransforms" Content="Snap handle drags" IsChecked="True" ToolTip="Snap dragging to increments. Typed values are exact."/>
+                  <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <TextBlock Text="Step" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Name="SnapStep" Text="1" Width="60" IsEnabled="{Binding IsChecked, ElementName=SnapTransforms}" AutomationProperties.Name="Handle snap step"/>
+                    <TextBlock Name="SnapUnit" Text="mm" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                  </StackPanel>
+                </StackPanel>
+            </Border>
+            <Border Padding="4" Background="{DynamicResource Ink}" CornerRadius="4">
+              <StackPanel Orientation="Horizontal">
+                <Button Name="MoveHandleButton" local:Icon.Key="move" Style="{StaticResource HudMode}" Content="Move" ToolTip="Move · selection center" AutomationProperties.Name="Move" Click="MoveHandleClick"/>
+                <Button Name="RotateHandleButton" local:Icon.Key="rotate" Style="{StaticResource HudMode}" Content="Rotate" ToolTip="Rotate using the rings or Roll, Pitch and Yaw." AutomationProperties.Name="Rotate" Click="RotateHandleClick"/>
+                <Button Name="ScaleHandleButton" local:Icon.Key="scale" Style="{StaticResource HudMode}" Content="Scale" ToolTip="Scale · dimensions" AutomationProperties.Name="Scale" Click="ScaleHandleClick"/>
+                <Border Width="1" Margin="4,5" Background="{DynamicResource MutedInk}"/>
+                <TabControl Name="TransformTabs" SelectedIndex="1" SelectionChanged="TransformTabChanged" VerticalAlignment="Center"
+                            AutomationProperties.Name="Transform values">
+                  <TabControl.Template>
+                    <ControlTemplate TargetType="TabControl"><ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent"/></ControlTemplate>
+                  </TabControl.Template>
+                    <TabItem Header="Scale">
+                      <StackPanel Orientation="Horizontal">
+                        <StackPanel Width="61" Margin="1,0" ToolTip="Dimension X in millimeters. Press Enter to accept.">
+                          <TextBlock Text="X" Style="{StaticResource HudAxisLabel}"/>
+                          <TextBox Name="SizeX" Style="{StaticResource HudNumber}" BorderBrush="#C9584C" AutomationProperties.Name="Dimension X in millimeters" TextChanged="SizeInputChanged"/>
+                        </StackPanel>
+                        <StackPanel Width="61" Margin="1,0" ToolTip="Dimension Y in millimeters. Press Enter to accept.">
+                          <TextBlock Text="Y" Style="{StaticResource HudAxisLabel}"/>
+                          <TextBox Name="SizeY" Style="{StaticResource HudNumber}" BorderBrush="#439362" AutomationProperties.Name="Dimension Y in millimeters" TextChanged="SizeInputChanged"/>
+                        </StackPanel>
+                        <StackPanel Width="61" Margin="1,0" ToolTip="Dimension Z in millimeters. Press Enter to accept.">
+                          <TextBlock Text="Z" Style="{StaticResource HudAxisLabel}"/>
+                          <TextBox Name="SizeZ" Style="{StaticResource HudNumber}" BorderBrush="#467EC2" AutomationProperties.Name="Dimension Z in millimeters" TextChanged="SizeInputChanged"/>
+                        </StackPanel>
+                        <TextBlock Text="mm" VerticalAlignment="Center" Foreground="{DynamicResource AccentText}" Margin="4,0,5,0"/>
+                      </StackPanel>
+                    </TabItem>
+                    <TabItem Header="Move">
+                      <StackPanel Orientation="Horizontal">
+                        <StackPanel Width="61" Margin="1,0" ToolTip="Center X in millimeters. Press Enter to accept.">
+                          <TextBlock Text="X" Style="{StaticResource HudAxisLabel}"/>
+                          <TextBox Name="PositionX" Style="{StaticResource HudNumber}" BorderBrush="#C9584C" AutomationProperties.Name="Center X in millimeters"/>
+                        </StackPanel>
+                        <StackPanel Width="61" Margin="1,0" ToolTip="Center Y in millimeters. Press Enter to accept.">
+                          <TextBlock Text="Y" Style="{StaticResource HudAxisLabel}"/>
+                          <TextBox Name="PositionY" Style="{StaticResource HudNumber}" BorderBrush="#439362" AutomationProperties.Name="Center Y in millimeters"/>
+                        </StackPanel>
+                        <StackPanel Width="61" Margin="1,0" ToolTip="Center Z in millimeters. Press Enter to accept.">
+                          <TextBlock Text="Z" Style="{StaticResource HudAxisLabel}"/>
+                          <TextBox Name="PositionZ" Style="{StaticResource HudNumber}" BorderBrush="#467EC2" AutomationProperties.Name="Center Z in millimeters"/>
+                        </StackPanel>
+                        <TextBlock Text="mm" VerticalAlignment="Center" Foreground="{DynamicResource AccentText}" Margin="4,0,5,0"/>
+                      </StackPanel>
+                    </TabItem>
+                    <TabItem Header="Rotate">
+                      <StackPanel Orientation="Horizontal">
+                        <StackPanel Width="61" Margin="1,0" ToolTip="Rotation X in degrees. Press Enter to accept.">
+                          <TextBlock Text="Roll" Style="{StaticResource HudAxisLabel}"/>
+                          <TextBox Name="RotationX" Style="{StaticResource HudNumber}" BorderBrush="#C9584C" AutomationProperties.Name="Rotation X in degrees"/>
+                        </StackPanel>
+                        <StackPanel Width="61" Margin="1,0" ToolTip="Rotation Y in degrees. Press Enter to accept.">
+                          <TextBlock Text="Pitch" Style="{StaticResource HudAxisLabel}"/>
+                          <TextBox Name="RotationY" Style="{StaticResource HudNumber}" BorderBrush="#439362" AutomationProperties.Name="Rotation Y in degrees"/>
+                        </StackPanel>
+                        <StackPanel Width="61" Margin="1,0" ToolTip="Rotation Z in degrees. Press Enter to accept.">
+                          <TextBlock Text="Yaw" Style="{StaticResource HudAxisLabel}"/>
+                          <TextBox Name="RotationZ" Style="{StaticResource HudNumber}" BorderBrush="#467EC2" AutomationProperties.Name="Rotation Z in degrees"/>
+                        </StackPanel>
+                        <TextBlock Name="RotationUnits" Text="°" VerticalAlignment="Center" Foreground="{DynamicResource AccentText}" Margin="4,0,5,0"/>
+                      </StackPanel>
+                    </TabItem>
+                </TabControl>
+                <CheckBox Name="AspectLock" Width="32" FocusVisualStyle="{StaticResource KeyboardFocus}" Margin="0" ToolTip="Keep proportions when scaling"
+                          AutomationProperties.Name="Keep proportions when scaling">
+                  <CheckBox.Style>
+                    <Style TargetType="CheckBox">
+                      <Setter Property="Visibility" Value="Collapsed"/>
+                      <Style.Triggers><DataTrigger Binding="{Binding SelectedIndex, ElementName=TransformTabs}" Value="0"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                    </Style>
+                  </CheckBox.Style>
+                  <CheckBox.Template>
+                    <ControlTemplate TargetType="CheckBox">
+                      <Border Name="LockChrome" Background="Transparent" CornerRadius="2">
+                        <local:SvgIcon Name="LockIcon" Key="unlock" Width="18" Height="18" Foreground="{DynamicResource AccentText}"/>
+                      </Border>
+                      <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="LockChrome" Property="Background" Value="{DynamicResource MutedInk}"/></Trigger>
+                        <Trigger Property="IsChecked" Value="True"><Setter TargetName="LockChrome" Property="Background" Value="{DynamicResource Accent}"/><Setter TargetName="LockIcon" Property="Key" Value="lock"/></Trigger>
+                      </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                  </CheckBox.Template>
+                </CheckBox>
+                <StackPanel Name="TransformDraftActions" Visibility="Collapsed" Orientation="Horizontal">
+                  <Button Name="CommitTransformButton" Content="Apply" local:Icon.Key="apply" Style="{StaticResource HudMode}" Width="30"
+                          AutomationProperties.Name="Apply transform value" ToolTip="Apply value (Enter)" Click="CommitTransformClick"/>
+                  <Button Name="DiscardTransformButton" Content="Cancel" local:Icon.Key="cancel" Style="{StaticResource HudMode}" Width="30"
+                          AutomationProperties.Name="Discard transform value" ToolTip="Discard value (Esc)" Click="CancelTransformClick"/>
+                </StackPanel>
+                <Button Name="TransformOptionsButton" local:Icon.Key="chevron-down" Style="{StaticResource HudMode}" Width="25" Content="Transform options"
+                        AutomationProperties.Name="Handle snapping options" ToolTip="Handle snapping options" Click="TransformOptionsClick"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
       </Grid>
-      <Border Grid.Column="1" BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0" Background="{DynamicResource ChromeFFFFFFFF}">
+      <Button x:Name="ToggleItemsButton" Content="❯" Style="{StaticResource QuietButton}" ToolTip="Hide items pane" AutomationProperties.Name="Hide items pane" Panel.ZIndex="1" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,8,0" Width="32" Height="32" Padding="4" Background="{DynamicResource ChromeFFFFFF}" Click="ToggleItemsClick"/>
+      <Border x:Name="ItemsPane" Grid.Column="1" BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0">
+        <Border.Style>
+          <Style TargetType="Border">
+            <Setter Property="Width" Value="330"/><Setter Property="Background" Value="{DynamicResource ChromeFFFFFF}"/>
+            <Style.Triggers><DataTrigger Binding="{Binding Visibility, ElementName=ObjectsOverview}" Value="Visible">
+              <Setter Property="Width" Value="250"/><Setter Property="Background" Value="{DynamicResource RibbonSurface}"/>
+            </DataTrigger></Style.Triggers>
+          </Style>
+        </Border.Style>
         <Grid Name="Inspector">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -611,11 +717,20 @@
                 <TextBlock x:Name="TextPlacementNote" FontSize="12" Foreground="{DynamicResource MutedInk}" Margin="0,14,0,0" LineHeight="18" />
                 <TextBlock Text="Height measures visible ink, not font size. Installed character fallback is allowed; missing glyphs are rejected. Planar text only: no curved wrapping or bevel." FontSize="12" Foreground="{DynamicResource MutedInk}" Margin="0,12,0,0" LineHeight="18" />
               </StackPanel>
-              <StackPanel Name="ObjectsOverview">
-                <TextBlock Text="Objects" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10" />
-                <ListBox Name="ObjectList" MinHeight="90" MaxHeight="190" SelectionMode="Extended" ScrollViewer.CanContentScroll="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel" AutomationProperties.Name="Scene objects and groups" SelectionChanged="SelectionChanged" PreviewKeyDown="ObjectTreeKeyDown" MouseDoubleClick="ObjectTreeDoubleClick" PreviewMouseLeftButtonDown="ObjectTreeMouseDown" PreviewMouseWheel="ObjectTreeMouseWheel" GotKeyboardFocus="ObjectTreeGotKeyboardFocus" LayoutUpdated="ObjectTreeLayoutUpdated" ScrollViewer.ScrollChanged="ObjectTreeScrollChanged">
+              <StackPanel Name="ObjectsOverview" TextElement.Foreground="{DynamicResource BarInk}">
+                <WrapPanel Margin="0,0,0,6">
+                  <Button local:Icon.Key="select-all" Name="SelectAllButton" AutomationProperties.Name="Select all" Width="34" Height="32" Style="{StaticResource HeaderIconButton}" Padding="8,4" MinHeight="28" ToolTip="Select all objects and groups" Click="SelectAllClick" />
+                  <Button local:Icon.Key="clear-selection" Name="ClearSelectionButton" AutomationProperties.Name="Clear selection" Width="34" Height="32" Style="{StaticResource HeaderIconButton}" Padding="8,4" MinHeight="28" ToolTip="Clear the selection" Click="ClearSelectionClick" />
+                  <Button local:Icon.Key="export-selection" Name="ExportSelectionButton"  Width="34" Height="32" Style="{StaticResource HeaderIconButton}" Padding="8,4" MinHeight="28" Margin="0" ToolTip="Export selected objects and whole groups as 3MF, STL, OBJ, PLY or glTF/GLB" AutomationProperties.Name="Export selection" Click="SelectionExport_Click" />
+                  <Button Width="34" Height="32" Style="{StaticResource HeaderIconButton}" local:Icon.Key="group" Name="GroupButton" ToolTip="Review grouping selected objects; meshes remain separate" AutomationProperties.Name="Group" Click="GroupClick" MinHeight="28" Padding="9,4" />
+                  <Button Width="34" Height="32" Style="{StaticResource HeaderIconButton}" local:Icon.Key="ungroup" Name="UngroupButton" ToolTip="Review making group members independent" AutomationProperties.Name="Ungroup" Click="UngroupClick" MinHeight="28" Padding="9,4" />
+                  <Button Width="34" Height="32" Style="{StaticResource HeaderIconButton}" local:Icon.Key="edit-members" Name="EditMembersButton" Margin="0,0,4,0" Padding="8,4" ToolTip="Select and edit individual members while preserving their group" AutomationProperties.Name="Edit selected group members" Click="EnterGroupClick" MinHeight="28" />
+                </WrapPanel>
+                <TextBlock Text="Items" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10" />
+                <ListBox Name="ObjectList" MinHeight="44" Background="Transparent" BorderThickness="0" Padding="0" MaxHeight="190" SelectionMode="Extended" ScrollViewer.CanContentScroll="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel" AutomationProperties.Name="Scene objects and groups" SelectionChanged="SelectionChanged" PreviewKeyDown="ObjectTreeKeyDown" MouseDoubleClick="ObjectTreeDoubleClick" PreviewMouseLeftButtonDown="ObjectTreeMouseDown" PreviewMouseWheel="ObjectTreeMouseWheel" GotKeyboardFocus="ObjectTreeGotKeyboardFocus" LayoutUpdated="ObjectTreeLayoutUpdated" ScrollViewer.ScrollChanged="ObjectTreeScrollChanged">
                   <ItemsControl.ItemContainerStyle>
                     <Style BasedOn="{StaticResource {x:Type ListBoxItem}}" TargetType="{x:Type ListBoxItem}">
+                      <Setter Property="Foreground" Value="{DynamicResource BarInk}"/>
                       <Setter Property="Height" Value="34" />
                       <Setter Property="Padding" Value="9,5" />
                       <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />
@@ -717,28 +832,22 @@
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ListBox>
-                <WrapPanel Margin="0,6,0,0">
-                  <Button local:Icon.Key="select-all" Name="SelectAllButton" Content="Select all" Style="{StaticResource QuietButton}" Padding="8,4" MinHeight="28" ToolTip="Select all objects and groups" Click="SelectAllClick" />
-                  <Button local:Icon.Key="clear-selection" Name="ClearSelectionButton" Content="Clear" Style="{StaticResource QuietButton}" Padding="8,4" MinHeight="28" ToolTip="Clear the selection" Click="ClearSelectionClick" />
-                  <Button local:Icon.Key="export-selection" Name="ExportSelectionButton" Content="Export selection…" Style="{StaticResource QuietButton}" Padding="8,4" MinHeight="28" Margin="0" ToolTip="Export selected objects and whole groups as 3MF, STL, OBJ, PLY or glTF/GLB" AutomationProperties.Name="Export selection" Click="SelectionExport_Click" />
-                </WrapPanel>
-                <TextBlock Name="SelectionHint" Text="Select an object to edit it." Foreground="{DynamicResource MutedInk}" FontSize="12" Margin="0,10,0,0" />
-                <TextBlock Name="ObjectTreeHint" Text="Expand a group to see its members. Choose Edit members to work inside it." Foreground="{DynamicResource MutedInk}" FontSize="12" Margin="0,6,0,0" Visibility="Collapsed" />
-                <Grid Margin="0,12,0,0">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition />
-                    <ColumnDefinition />
-                    <ColumnDefinition />
-                  </Grid.ColumnDefinitions>
-                </Grid>
+
+                <TextBlock Name="SelectionHint" Text="Select an object to edit it." Foreground="{DynamicResource BarInk}" FontSize="12" Margin="0,10,0,0" />
+                <TextBlock Name="ObjectTreeHint" Text="Expand a group to see its members. Choose Edit members to work inside it." Foreground="{DynamicResource BarInk}" FontSize="12" Margin="0,6,0,0" Visibility="Collapsed" />
+                <StackPanel>
+                  <StackPanel.Style><Style TargetType="StackPanel"><Style.Triggers>
+                    <DataTrigger Binding="{Binding IsEnabled, ElementName=RenameButton}" Value="False"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                  </Style.Triggers></Style></StackPanel.Style>
                 <StackPanel Name="RenameFields" Margin="0,12,0,0">
                   <TextBlock Name="ObjectNameLabel" Text="Object name" Margin="0,0,0,5" />
                   <DockPanel>
-                    <Button local:Icon.Key="rename" Name="RenameButton" Content="Rename" DockPanel.Dock="Right" Margin="6,0,0,0" Click="RenameClick" />
+                    <Button local:Icon.Key="rename" Name="RenameButton" Style="{StaticResource HeaderIconButton}" AutomationProperties.Name="Rename" ToolTip="Rename" DockPanel.Dock="Right" Margin="6,0,0,0" Click="RenameClick" />
                     <TextBox Name="ObjectName" MaxLength="100" AutomationProperties.Name="Object name" />
                   </DockPanel>
                 </StackPanel>
-                <TextBlock Name="ObjectSummary" Foreground="{DynamicResource MutedInk}" FontSize="12" Margin="0,14,0,0" LineHeight="18" />
+                </StackPanel>
+                <TextBlock Name="ObjectSummary" Foreground="{DynamicResource BarInk}" FontSize="12" Margin="0,14,0,0" LineHeight="18" />
               </StackPanel>
               <StackPanel Name="ConstructionPanel" Visibility="Collapsed">
                 <TextBlock Name="ConstructionTitle" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,14" />
@@ -853,7 +962,7 @@
                 </StackPanel>
                 <StackPanel Name="CenterOnPlateFields" Visibility="Collapsed">
                   <TextBlock Text="Horizontal target: X=0 mm · Y=0 mm" Margin="0,0,0,14"/>
-                  <CheckBox Name="CenterPlaceOnBed" Content="Place on bed" Checked="ArrangementSettingsChanged" Unchecked="ArrangementSettingsChanged" ToolTip="Move the entire selected set so its lowest point reaches world Z=0." AutomationProperties.Name="Center selection and place its lowest point on the bed"/>
+                  <CheckBox Name="CenterPlaceOnBed" Content="Settle on build plate" Checked="ArrangementSettingsChanged" Unchecked="ArrangementSettingsChanged" ToolTip="Move the entire selected set so its lowest point reaches world Z=0." AutomationProperties.Name="Center selection and place its lowest point on the bed"/>
                 </StackPanel>
                 <StackPanel Name="ArrayFields" Visibility="Collapsed">
                   <Grid>
@@ -882,107 +991,6 @@
                   </ComboBox>
                 </StackPanel>
                 <TextBlock Name="ArrangementReview" Foreground="{DynamicResource MutedInk}" Margin="0,16,0,0" LineHeight="20" />
-              </StackPanel>
-              <StackPanel Name="EditPanel" Margin="0" Visibility="Collapsed">
-                <TextBlock Name="HandleTitle" Visibility="Collapsed" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,14" />
-                <TabControl Name="TransformTabs" Margin="0,16,0,0" AutomationProperties.Name="Object transform" SelectionChanged="TransformTabChanged">
-                  <TabItem Header="Size">
-                    <StackPanel>
-                      <TextBlock Text="Dimensions · mm" Foreground="{DynamicResource MutedInk}" Margin="0,0,0,10" />
-                      <Grid>
-                        <Grid.ColumnDefinitions>
-                          <ColumnDefinition />
-                          <ColumnDefinition />
-                          <ColumnDefinition />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,7,0">
-                          <TextBlock Text="X" FontSize="12" Margin="0,0,0,5" />
-                          <TextBox Name="SizeX" AutomationProperties.Name="Size X in millimeters" TextChanged="SizeInputChanged" />
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Margin="0,0,7,0">
-                          <TextBlock Text="Y" FontSize="12" Margin="0,0,0,5" />
-                          <TextBox Name="SizeY" AutomationProperties.Name="Size Y in millimeters" TextChanged="SizeInputChanged" />
-                        </StackPanel>
-                        <StackPanel Grid.Column="2">
-                          <TextBlock Text="Z" FontSize="12" Margin="0,0,0,5" />
-                          <TextBox Name="SizeZ" AutomationProperties.Name="Size Z in millimeters" TextChanged="SizeInputChanged" />
-                        </StackPanel>
-                      </Grid>
-                      <CheckBox Name="AspectLock" Content="Keep proportions" Margin="0,10,0,12" />
-                      <StackPanel Orientation="Horizontal">
-                        <Button local:Icon.Key="preview" Content="Preview size" Style="{StaticResource PrimaryButton}" Click="ResizeClick" />
-                        <Button local:Icon.Key="reset" Name="SizeResetButton" Content="Reset" ToolTip="Discard uncommitted field changes" Click="ResetClick" />
-                      </StackPanel>
-                    </StackPanel>
-                  </TabItem>
-                  <TabItem Header="Move">
-                    <StackPanel>
-                      <TextBlock Text="Selection center · mm" Foreground="{DynamicResource MutedInk}" Margin="0,0,0,10" />
-                      <Grid>
-                        <Grid.ColumnDefinitions>
-                          <ColumnDefinition />
-                          <ColumnDefinition />
-                          <ColumnDefinition />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,7,0">
-                          <TextBlock Text="X" FontSize="12" Margin="0,0,0,5" />
-                          <TextBox Name="PositionX" AutomationProperties.Name="Position X in millimeters" />
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Margin="0,0,7,0">
-                          <TextBlock Text="Y" FontSize="12" Margin="0,0,0,5" />
-                          <TextBox Name="PositionY" AutomationProperties.Name="Position Y in millimeters" />
-                        </StackPanel>
-                        <StackPanel Grid.Column="2">
-                          <TextBlock Text="Z" FontSize="12" Margin="0,0,0,5" />
-                          <TextBox Name="PositionZ" AutomationProperties.Name="Position Z in millimeters" />
-                        </StackPanel>
-                      </Grid>
-                      <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
-                        <Button local:Icon.Key="preview" Content="Preview move" Style="{StaticResource PrimaryButton}" Click="MoveClick" />
-                      </StackPanel>
-                      <Button local:Icon.Key="reset" Name="MoveResetButton" Content="Reset fields" HorizontalAlignment="Left" Style="{StaticResource QuietButton}" Margin="0,6,0,0" Click="ResetClick" />
-                    </StackPanel>
-                  </TabItem>
-                  <TabItem Header="Rotate">
-                    <StackPanel>
-                      <TextBlock Text="Relative rotation · degrees" Foreground="{DynamicResource MutedInk}" Margin="0,0,0,10" />
-                      <Grid>
-                        <Grid.ColumnDefinitions>
-                          <ColumnDefinition />
-                          <ColumnDefinition />
-                          <ColumnDefinition />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,7,0">
-                          <TextBlock Text="X" FontSize="12" Margin="0,0,0,5" />
-                          <TextBox Name="RotationX" Text="0" AutomationProperties.Name="Relative rotation X in degrees" />
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Margin="0,0,7,0">
-                          <TextBlock Text="Y" FontSize="12" Margin="0,0,0,5" />
-                          <TextBox Name="RotationY" Text="0" AutomationProperties.Name="Relative rotation Y in degrees" />
-                        </StackPanel>
-                        <StackPanel Grid.Column="2">
-                          <TextBlock Text="Z" FontSize="12" Margin="0,0,0,5" />
-                          <TextBox Name="RotationZ" Text="0" AutomationProperties.Name="Relative rotation Z in degrees" />
-                        </StackPanel>
-                      </Grid>
-                      <TextBlock Text="Rotate around the selection center, in X → Y → Z order on world axes." FontSize="12" Foreground="{DynamicResource MutedInk}" Margin="0,10,0,12" />
-                      <StackPanel Orientation="Horizontal">
-                        <Button local:Icon.Key="preview" Content="Preview rotation" Style="{StaticResource PrimaryButton}" Click="RotateClick" />
-                        <Button local:Icon.Key="reset" Name="RotationResetButton" Content="Reset" Click="ResetClick" />
-                      </StackPanel>
-                    </StackPanel>
-                  </TabItem>
-                </TabControl>
-                <StackPanel Name="HandleSettings" Margin="0,18,0,0">
-                  <Border Height="1" Background="{DynamicResource Line}" Margin="0,0,0,12" />
-                  <CheckBox Name="SnapTransforms" Content="Snap transforms" IsChecked="True" AutomationProperties.Name="Snap transforms" Checked="TransformSettingsChanged" Unchecked="TransformSettingsChanged" />
-                  <DockPanel Margin="0,6,0,0" LastChildFill="False">
-                    <TextBlock Text="Step" VerticalAlignment="Center" Margin="0,0,10,0" />
-                    <TextBox Name="SnapStep" Text="1" Width="80" AutomationProperties.Name="Transform snap step" TextChanged="TransformSettingsChanged" />
-                    <TextBlock Name="SnapUnit" Text="mm" VerticalAlignment="Center" Foreground="{DynamicResource MutedInk}" Margin="8,0,0,0" />
-                  </DockPanel>
-                  <CheckBox Name="UniformScale" Content="Scale all axes with a handle" IsChecked="True" Visibility="Collapsed" Margin="0,8,0,0" AutomationProperties.Name="Uniform handle scale" Checked="TransformSettingsChanged" Unchecked="TransformSettingsChanged" />
-                </StackPanel>
               </StackPanel>
             </StackPanel>
           </ScrollViewer>
@@ -1176,23 +1184,6 @@
               </Grid>
             </StackPanel>
           </Border>
-          <Border Name="TransformActions" Grid.Row="2" Background="{DynamicResource ChromeF6F9FB}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="18,14,18,16" Visibility="Collapsed">
-            <StackPanel>
-              <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,0,12">
-                <TextBlock Name="TransformSummary" Text="Preview a transform before applying it." Foreground="{DynamicResource MutedInk}" FontSize="12" LineHeight="18" />
-              </ScrollViewer>
-              <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition />
-                  <ColumnDefinition />
-                  <ColumnDefinition />
-                </Grid.ColumnDefinitions>
-                <Button local:Icon.Key="preview" Name="PreviewTransformButton" Content="Preview" AutomationProperties.Name="Preview transform" Click="PreviewTransformClick" />
-                <Button local:Icon.Key="apply" Name="ApplyTransformButton" Grid.Column="1" Content="Apply" IsEnabled="False" Style="{StaticResource PrimaryButton}" AutomationProperties.Name="Apply transform preview" Click="ApplyTransformClick" />
-                <Button local:Icon.Key="cancel" Name="CancelTransformButton" Grid.Column="2" Content="Cancel" Margin="0" AutomationProperties.Name="Cancel transform preview" Click="CancelTransformClick" />
-              </Grid>
-            </StackPanel>
-          </Border>
           <Border Name="ArrangementActions" Grid.Row="2" Background="{DynamicResource ChromeF6F9FB}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="18,14,18,16" Visibility="Collapsed">
             <StackPanel>
               <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,0,12">
@@ -1223,12 +1214,13 @@
         </UniformGrid>
       </StackPanel>
     </Border>
-    <Border Grid.Row="3" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Background="{DynamicResource ChromeFFFFFFFF}" Padding="18,8">
-      <DockPanel MinHeight="34">
-        <Button local:Icon.Key="cancel" Name="CancelOperation" Content="Cancel operation" DockPanel.Dock="Right" Visibility="Collapsed" Margin="12,0,0,0" Click="CancelClick" />
+    <Border Grid.Row="3" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Background="{DynamicResource ChromeFFFFFFFF}" Padding="12,3">
+      <DockPanel MinHeight="26">
+        <Button local:Icon.Key="cancel" Name="CancelOperation" MinHeight="24" Height="24" Padding="8,1" Content="Cancel operation" DockPanel.Dock="Right" Visibility="Collapsed" Margin="12,0,0,0" Click="CancelClick" />
         <ProgressBar Name="Progress" Width="100" Height="4" DockPanel.Dock="Right" Margin="14,0,0,0" IsIndeterminate="True" Visibility="Collapsed" AutomationProperties.Name="Operation progress" />
+        <TextBlock Name="SceneSummary" DockPanel.Dock="Right" Margin="12,0,0,0" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource MutedInk}"/>
         <StackPanel VerticalAlignment="Center">
-          <local:AccessibleStatusText x:Name="Status" Text="Ready. All dimensions are in millimeters." FontSize="12" MinHeight="20" AutomationProperties.LiveSetting="Polite" />
+          <local:AccessibleStatusText x:Name="Status" Text="Ready" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" FontSize="12" MinHeight="20" AutomationProperties.LiveSetting="Polite" />
           <local:AccessibleStatusText x:Name="RecoveryWarning" Text="Recovery copy could not be saved. Save your work normally." Visibility="Collapsed" TextWrapping="Wrap" Foreground="{DynamicResource ErrorInk}" FontSize="12" AutomationProperties.LiveSetting="Polite"/>
         </StackPanel>
       </DockPanel>

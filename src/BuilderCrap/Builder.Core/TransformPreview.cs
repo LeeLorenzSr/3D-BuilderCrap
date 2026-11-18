@@ -7,6 +7,21 @@ public abstract record TransformRequest(Guid ObjectId) : GeometryRequest
 {
     /// <summary>Explicit leaf targets, expanded to whole groups. Empty uses the compatible positional ObjectId.</summary>
     public ImmutableArray<Guid> ObjectIds { get; init; } = [];
+
+    /// <summary>Quantize a displacement in the same units as its step. Zero disables snapping.</summary>
+    public static double SnapIncrement(double value, double step)
+    {
+        if (!double.IsFinite(value) || !double.IsFinite(step) || step < 0)
+            throw new ModelException("Snapping needs a finite value and a nonnegative step.");
+        if (step == 0) return value;
+        // Remainders avoid overflow when a finite displacement spans many small steps.
+        var remainder = value % step;
+        if (remainder == 0) return value;
+        var snapped = value - remainder;
+        if (Math.Abs(remainder) >= step - Math.Abs(remainder)) snapped += Math.CopySign(step,value);
+        if (!double.IsFinite(snapped)) throw new ModelException("Snapping overflowed the supported transform range.");
+        return snapped;
+    }
 }
 /// <summary>World-axis displacement in millimeters. Zero snap disables quantization; midpoint ties round away from zero.</summary>
 public sealed record MoveTransform(Guid ObjectId, Vec3 DeltaMillimeters, double SnapMillimeters = 0) : TransformRequest(ObjectId);
@@ -136,20 +151,7 @@ public sealed partial class EditorSession
     }
     private static Vec3 SnapVector(Vec3 values,double step)
     {
-        ValidateSnap(step);
-        if(!values.IsFinite) throw new ModelException("Enter a finite transform value for each axis.");
-        if(step == 0) return values;
-        static double Snap(double value,double step)
-        {
-            // Remainders avoid overflowing value/step for tiny positive steps. Compare remainder
-            // against its complement to handle midpoint ties without underflowing step/2.
-            var remainder=value%step;
-            if(remainder == 0) return value;
-            var snapped=value-remainder;
-            if(Math.Abs(remainder) >= step-Math.Abs(remainder)) snapped+=Math.CopySign(step,value);
-            if(!double.IsFinite(snapped)) throw new ModelException("Snapping overflowed the supported transform range.");
-            return snapped;
-        }
-        return new(Snap(values.X,step),Snap(values.Y,step),Snap(values.Z,step));
+        return new(TransformRequest.SnapIncrement(values.X,step),TransformRequest.SnapIncrement(values.Y,step),
+            TransformRequest.SnapIncrement(values.Z,step));
     }
 }

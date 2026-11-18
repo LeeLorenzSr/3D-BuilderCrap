@@ -36,7 +36,13 @@ public sealed class AccessiblePalette : ResourceDictionary
         Brush("HoverInk", "#25333D", SystemColors.HighlightTextColor);
         Brush("StatusInk", "#344D5F", SystemColors.WindowTextColor);
         Brush("ErrorInk", "#A53025", SystemColors.WindowTextColor);
-        // Preserve the established light theme; every chrome color has a Windows contrast role.
+        Brush("WorkspaceBar", "#30477E", SystemColors.WindowColor);
+        Brush("RibbonSurface", "#343434", SystemColors.WindowColor);
+        Brush("BarInk", "#F4F5F8", SystemColors.WindowTextColor);
+        Brush("BarHover", "#506187", SystemColors.HighlightColor);
+        Brush("BarHoverInk", "#FFFFFF", SystemColors.HighlightTextColor);
+        Brush("BarDisabled", "#A8AFBA", SystemColors.GrayTextColor);
+        // Dialog and inspector surfaces retain the light theme; every chrome color has a Windows contrast role.
         foreach (var hex in new[]{"#F6F7F8","#FFFFFF","#FFFFFFFF","#FAFBFC","#F8FAFB","#EDF1F4","#EEF8FAFB","#EAF6F8FA","#E8FFFFFF","#F7FFFFFF","#F6F9FB","#FFF4DB"})
             Brush("Chrome"+hex[1..],hex,SystemColors.WindowColor);
         foreach (var hex in new[]{"#ECF2F6","#DCE8EF","#F0F4F6","#EDF1F4"})

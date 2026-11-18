@@ -181,7 +181,7 @@ public partial class MainWindow
         AddImageReliefButton.IsEnabled=candidate!=null&&!imageReliefDraftChanged&&operation==null&&!imageReliefCancelRequested&&editor.Snapshot.Revision==imageReliefBaseRevision;
         CancelImageReliefButton.IsEnabled=!imageReliefCancelRequested;
         Toolbar.IsEnabled=ObjectList.IsEnabled=false;
-        ObjectsOverview.Visibility=EditPanel.Visibility=ConstructionTools.Visibility=InspectionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
+        ObjectsOverview.Visibility=ConstructionTools.Visibility=InspectionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
         PreviewBanner.Visibility=candidate==null?Visibility.Collapsed:Visibility.Visible;
         PreviewLabel.Text=$"Image {(candidate==null?ImageConversionName:ImageRequestName(candidate.Request))} preview · not yet added";EmptyHint.Visibility=Visibility.Collapsed;
     }

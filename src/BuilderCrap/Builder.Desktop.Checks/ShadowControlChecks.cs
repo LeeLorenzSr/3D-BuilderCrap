@@ -62,10 +62,19 @@ internal static partial class Program
         await OpenSurfacePaint();await Workspace(4);Click(Named<Button>("ViewTopButton"));Layout(1040,680);obj=editor.Snapshot.Scene.Objects.Single();ViewFaces(obj,255);var point=ProjectMeasuredWorld(new(6,11,20));var pick=await(Task<Guid?>)Invoke("PickViewportObject",point)!;before=editor.Snapshot;ViewToggle("ViewShadows",false);ViewFaces(obj,255);var afterPick=await (Task<Guid?>)Invoke("PickViewportObject",point)!;Assert(afterPick==pick&&pick==obj.Id,"Shadow toggle changed accepted-mesh pick.");ViewToggle("ViewShadows",true);ViewFaces(obj,255);SameAccepted(before);
         Pass("Torus light-ray hole remains open, overlapping surfaces use one uniform silhouette, below-bed meshes cast nothing, and authored face colors/Core picking remain unchanged");
 
-        await OpenShadow("raised-box.3mf");before=editor.Snapshot;var acceptedBounds=ShadowShape().Bounds;await Workspace(1);Click(Named<Button>("MoveHandleButton"));Named<TextBox>("PositionZ").Text="40";Click(Named<Button>("PreviewTransformButton"));await Idle();var candidate=editor.Snapshot.Preview!;var previewBounds=ShadowShape().Bounds;
-        Assert(previewBounds!=acceptedBounds,"Move preview did not update its actual shadow.");Named<TextBox>("PositionY").Text="14.25";await Workspace(4);ViewToggle("ViewShadows",false);ViewToggle("ViewShadows",true);
-        Assert(ReferenceEquals(editor.Snapshot.Preview,candidate)&&Named<TextBox>("PositionY").Text=="14.25"&&!Named<Button>("ApplyTransformButton").IsEnabled,"Shadow display invalidated candidate/draft or enabled stale Apply.");TransformFooterVisible();Click(Named<Button>("CancelTransformButton"));SameAccepted(before);Assert(ShadowShape().Bounds==acceptedBounds,"Cancel did not restore accepted shadow.");
-        await Workspace(1);Click(Named<Button>("MoveHandleButton"));Named<TextBox>("PositionZ").Text="40";Click(Named<Button>("PreviewTransformButton"));await Idle();candidate=editor.Snapshot.Preview!;Click(Named<Button>("ApplyTransformButton"));Assert(ReferenceEquals(editor.Snapshot.Scene,candidate.Scene),"Apply lost actual transform candidate.");Click(Named<Button>("UndoButton"));Assert(ReferenceEquals(editor.Snapshot.Scene,before.Scene)&&ShadowShape().Bounds==acceptedBounds,"Undo did not restore original geometry/shadow.");
-        Pass("Owned move preview updates the shadow; display toggles retain dirty drafts/token, Cancel restores accepted coverage and Apply/Undo restores geometry with its shadow");
+        await OpenShadow("raised-box.3mf");
+        before=editor.Snapshot;
+        var acceptedBounds=ShadowShape().Bounds;
+        await Workspace(1);Click(Named<Button>("BedButton"));await Idle();var candidate=editor.Snapshot.Preview!;
+        Assert(ShadowShape().Bounds!=acceptedBounds,"Settle preview did not update the displayed geometry.");
+        await Workspace(4);ViewToggle("ViewShadows",false);ViewToggle("ViewShadows",true);
+        Assert(ReferenceEquals(editor.Snapshot.Preview,candidate),"Changing View replaced the Settle preview.");
+        Click(Named<Button>("SettleCancelButton"));SameAccepted(before);
+        Assert(ShadowShape().Bounds==acceptedBounds,"Cancel did not restore the display.");
+        await Workspace(1);Click(Named<Button>("BedButton"));await Idle();candidate=editor.Snapshot.Preview!;
+        Click(Named<Button>("SettleConfirmButton"));Assert(ReferenceEquals(editor.Snapshot.Scene,candidate.Scene),"Settle lost the displayed candidate.");
+        Click(Named<Button>("UndoButton"));
+        Assert(ReferenceEquals(editor.Snapshot.Scene,before.Scene)&&ShadowShape().Bounds==acceptedBounds,"Undo did not restore the original display.");
+        Pass("Settle updates the shadow, retains its reviewed preview across display toggles, and restores the accepted shadow on Cancel or Undo");
     }
 }

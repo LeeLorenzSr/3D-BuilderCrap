@@ -126,7 +126,7 @@ public partial class MainWindow
         DoneEditingButton.IsEnabled=group!=null && available;
         EditMembersButton.IsEnabled=group==null && SelectedGroup!=null && available;
         EditMembersButton.Visibility=group==null ? Visibility.Visible : Visibility.Collapsed;
-        InsertButton.IsEnabled=AddShapeMenu.IsEnabled=group==null;
+        InsertButton.IsEnabled=group==null;
         DeleteButton.ToolTip=group!=null && !CanDeleteSelection ? "Keep at least two members in the group. Select fewer members, or choose Done and delete the whole group." :
             group!=null ? "Delete selected members while keeping their group (Delete)" : "Delete selected objects and groups (Delete)";
         DuplicateButton.ToolTip=group!=null ? "Duplicate selected members inside their group (Ctrl+D)" : "Duplicate selected objects and groups (Ctrl+D)";

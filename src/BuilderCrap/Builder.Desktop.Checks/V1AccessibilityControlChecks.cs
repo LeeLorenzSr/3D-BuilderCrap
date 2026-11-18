@@ -70,14 +70,13 @@ internal static partial class Program
 
     private static async Task V1ScaledControls()
     {
-        var captions=new[]{Named<Button>("NewButton").Content,Named<Button>("SaveButton").Content,
-            Tree(surface).OfType<Button>().Single(b=>AutomationProperties.GetName(b)=="Open model").Content}
+        var captions=new[]{Named<MenuItem>("NewButton").Header,Named<MenuItem>("OpenButton").Header}
             .Concat(new[]{"InsertWorkspaceTab","ObjectWorkspaceTab","EditWorkspaceTab","PaintWorkspaceTab","ViewWorkspaceTab"}.Select(name=>Named<TabItem>(name).Header))
             .Append(Named<MenuItem>("RecentFilesMenu").Header).Select(value=>value?.ToString()??"").ToArray();
         var keys=captions.Where(c=>c.Contains('_')).Select(c=>char.ToUpperInvariant(c[c.IndexOf('_')+1])).ToArray();
         Assert(keys.Distinct().Count()==keys.Length,"Persistent file commands and workspace tabs share an Alt access key.");
-        await Open("cube-20mm.stl");await Workspace(1);Click(Named<Button>("ScaleHandleButton"));await Idle();Layout(1040,720);
-        foreach(var name in new[]{"SizeX","SizeY","SizeZ","AspectLock","PreviewTransformButton","CancelTransformButton"})
+        await Open("cube-20mm.stl");await Workspace(1);Click(Named<Button>("ScaleHandleButton"));ArrayNumber("SizeX",23.5);await Idle();Layout(1040,720);
+        foreach(var name in new[]{"SizeX","SizeY","SizeZ","AspectLock","CommitTransformButton","DiscardTransformButton"})
         {
             var control=Named<Control>(name);var peer=FrameworkElementAutomationPeer.CreatePeerForElement(control);
             Assert(control.Focusable&&KeyboardNavigation.GetIsTabStop(control)&&peer!=null&&!string.IsNullOrWhiteSpace(peer.GetName()),"Resize control lacks keyboard stop or accessible name: "+name);
@@ -88,7 +87,7 @@ internal static partial class Program
             var bitmap=new RenderTargetBitmap((int)(1040*scale),(int)(720*scale),96*scale,96*scale,PixelFormats.Pbgra32);bitmap.Render(surface);
             var png=new PngBitmapEncoder();png.Frames.Add(BitmapFrame.Create(bitmap));using var file=File.Create(Path.Combine(output,$"v1-scale-{scale:0.##}.png"));png.Save(file);
         }
-        Click(Named<Button>("CancelTransformButton"));
+        Click(Named<Button>("DiscardTransformButton"));
         foreach(var format in new[]{".obj",".ply",".gltf",".glb"})
         {
             var dialog=new UnitsDialog("compatibility"+format,exporting:true);

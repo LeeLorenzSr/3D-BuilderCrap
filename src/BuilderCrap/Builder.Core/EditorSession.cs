@@ -237,7 +237,8 @@ public sealed partial class EditorSession
         CancellationToken cancellation = default, IProgress<OperationProgress>? progress = null, long? expectedRevision = null,
         StlImportMode stlMode=StlImportMode.Strict)
         => RunIo(() => {
-            var imported = ModelFiles.Read(Path.GetFullPath(filePath),unit,cancellation,progress,stlMode);
+            var model = ModelFiles.Read(Path.GetFullPath(filePath),unit,cancellation,progress,stlMode);
+            var imported = model.Scene;
             var captured = Snapshot;
             var candidate = captured.Scene.WithObjects(captured.Scene.Objects.AddRange(imported.Objects))
                 with {Groups=captured.Scene.Groups.AddRange(imported.Groups)};
@@ -252,6 +253,7 @@ public sealed partial class EditorSession
                 selectedIds=candidate.ExpandObjectIds(imported.Objects.Select(o=>o.Id).ToImmutableArray()); revision++;
             }
             return "Inserted " + Path.GetFileName(filePath) + ". You can undo it."+
+                (model.HasAdditionalPackageData ? " Additional project data stays in the source 3MF." : "")+
                 (imported.Metadata.IsEmpty?"":" Imported model information was not merged; the current document's information was retained.")+
                 (stlMode==StlImportMode.GeometryOnly&&Path.GetExtension(filePath).Equals(".stl",StringComparison.OrdinalIgnoreCase)?" Geometry only: STL attribute/color data was not imported.":"");
         },expectedRevision,preflight:()=>!Enum.IsDefined(stlMode)?new OperationResult(Outcome.Invalid,"Choose Strict or Geometry only for STL import."):editingGroupId.HasValue ? DoneWithGroup() : null);

@@ -122,7 +122,7 @@ public partial class MainWindow
         PreviewSeparateButton.IsEnabled=operation==null&&!separateCancelRequested;
         ApplySeparateButton.IsEnabled=candidate!=null&&operation==null&&!separateCancelRequested&&snapshot.Revision==separateBaseRevision&&snapshot.EditingGroupId==separateScope;
         CancelSeparateButton.IsEnabled=!separateCancelRequested;
-        Toolbar.IsEnabled=ObjectList.IsEnabled=false;ObjectsOverview.Visibility=EditPanel.Visibility=ConstructionTools.Visibility=InspectionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
+        Toolbar.IsEnabled=ObjectList.IsEnabled=false;ObjectsOverview.Visibility=ConstructionTools.Visibility=InspectionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
         PreviewBanner.Visibility=candidate==null?Visibility.Collapsed:Visibility.Visible;EmptyHint.Visibility=Visibility.Collapsed;RefreshSeparateViewLabel();
     }
     private bool SeparateDisplayVisible(SceneObject obj,EditorSnapshot snapshot)

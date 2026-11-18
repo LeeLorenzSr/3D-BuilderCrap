@@ -2,7 +2,7 @@
   #error PayloadDir is required
 #endif
 #ifndef PackageVersion
-  #define PackageVersion "1.0.2"
+  #define PackageVersion "1.0.4"
 #endif
 #ifndef PackageAppId
   #define PackageAppId "7C2AC698-9A70-49C8-BF7D-A58F2CF1EB90"

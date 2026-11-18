@@ -38,7 +38,7 @@ internal static partial class Program
     private static async Task RunSurfacePaintControls()
     {
         await OpenSurfacePaint();var before=editor.Snapshot;var source=before.Scene.Objects.Single();CheckRenderedSurface(source);Reachable("SurfaceMaterialButton");
-        Assert(Named<Canvas>("MaterialSelectionOverlay").Children.Count>0,"Painted selection lost independent outline.");Click(Named<Button>("SurfaceMaterialButton"));
+        Assert(ViewGroup("selectionOutlines").Children.Count>0,"Painted selection lost independent outline.");Click(Named<Button>("SurfaceMaterialButton"));
         Assert(!Named<Button>("PreviewMaterialButton").IsEnabled&&!Named<Button>("ApplyMaterialButton").IsEnabled,"Surface review enabled without a picked seed.");
         Named<TextBox>("MaterialHex").Text="#5F9B64";Named<TextBox>("MaterialName").Text="Green top";var camera=CameraPose();await PaintWorld(new(6,11,20));SameAccepted(before);var candidate=editor.Snapshot.Preview!;
         Assert(candidate.SurfaceMaterial!.TriangleIndices.SequenceEqual([2,3])&&candidate.SelectedObjectIds.SequenceEqual(before.SelectedObjectIds),"Flat click did not choose exactly the top region or changed selection.");
@@ -74,7 +74,7 @@ internal static partial class Program
 
         await Open("cube-20mm.stl");await Workspace(4);Click(Named<Button>("ViewIsometricButton"));await Workspace(3);before=editor.Snapshot;Click(Named<Button>("SurfaceMaterialButton"));
         CheckLocalTextUndo(Named<TextBox>("MaterialHex"),"#267CB5","#112233");CheckLocalTextUndo(Named<TextBox>("MaterialName"),"Blue","青 Δ");Assert(InputMethod.GetIsInputMethodEnabled(Named<TextBox>("MaterialName")),"Surface name lost IME.");await PaintWorld(new(6,11,20));candidate=editor.Snapshot.Preview!;
-        painted=candidate.Scene.Objects.Single();Assert(painted.Material!.Color==new RgbColor(153,170,185),"Unassigned surface paint did not promote a neutral base.");CheckRenderedSurface(painted);SameAccepted(before);
+        painted=candidate.Scene.Objects.Single();Assert(painted.Material==SurfaceMaterial.Neutral,"Unassigned surface paint did not promote a neutral base.");CheckRenderedSurface(painted);SameAccepted(before);
         using(var pending=new CancellationTokenSource())
         {var field=typeof(Builder.Desktop.MainWindow).GetField("pendingPick",PrivateInstance)!;field.SetValue(window,pending);try{Invoke("ViewTopClick",window,new RoutedEventArgs());Assert(pending.IsCancellationRequested,"Camera transition did not cancel pending surface pick.");}finally{field.SetValue(window,null);}}
         Named<TextBox>("MaterialHex").Text="#E5C44D";Click(Named<Button>("PreviewMaterialButton"));Click(Named<Button>("CancelMaterialButton"));await Idle();SameAccepted(before);Assert(editor.Snapshot.Preview==null,"In-flight paint Cancel left candidate.");

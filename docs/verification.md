@@ -11,6 +11,7 @@ python scripts/generate_fixtures.py
 python scripts/generate_failure_fixtures.py
 dotnet run --no-build --project src/BuilderCrap/Builder.Checks -- . --primitives-only
 dotnet run --no-build --project src/BuilderCrap/Builder.Checks -- . --construction-only
+dotnet run --no-build --project src/BuilderCrap/Builder.Checks -- . --native-save-only
 ```
 
 The primitive checks cover the nine shapes, preview/Apply/Cancel, history, native Save and STL/3MF reopening. Construction checks cover split/booleans and selection ownership using the original base fixtures. These are shared Core scenarios, not native desktop-input tests. Some older modes write to fixed dated paths beneath `.local/evidence/`; use a disposable checkout or preserve existing output before rerunning.
@@ -35,7 +36,7 @@ The extra `verify_*_outputs.py` helpers read saved output independently from Bui
 |---|---|
 | `Builder.Checks` | Core checks; use one focused mode. `generate_fixtures.py --help` lists additional synthetic input modes. |
 | `Builder.Desktop.Checks` | Isolated WPF controls/routed events/software renders, not real mouse input or OS file dialogs. |
-| `Builder.Mcp.Checks` | Real SDK subprocess/pipe protocol checks; requires the matching generated synthetic fixture tree and built Debug server. |
+| `Builder.Mcp.Checks` | Real SDK subprocess/pipe protocol checks; requires the matching generated synthetic fixture tree and a server built with the same Debug or Release configuration as the checks. |
 | Optional benchmark/trace projects | Historical diagnostic tools outside the normal solution; their recorded inputs/binaries are not shipped. |
 
 The combined no-flag checks and several later feature modes assume a larger historical `.local` fixture tree. This public export retains their source but deliberately omits private evidence, captured binaries and downloaded real-part fixtures. They are not the fresh-checkout quick checks above.

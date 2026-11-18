@@ -163,7 +163,7 @@ public partial class MainWindow
         AddPrimitiveButton.IsEnabled=operation==null&&!primitiveCancelRequested&&!primitiveDraftChanged&&candidate!=null;
         CancelPrimitiveButton.IsEnabled=!primitiveCancelRequested;PrimitivePanel.IsEnabled=operation==null&&!primitiveCancelRequested;
         Toolbar.IsEnabled=ObjectList.IsEnabled=false;
-        ObjectsOverview.Visibility=EditPanel.Visibility=ConstructionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
+        ObjectsOverview.Visibility=ConstructionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
         PreviewBanner.Visibility=candidate==null?Visibility.Collapsed:Visibility.Visible;PreviewLabel.Text="New shape preview · not yet added";
         EmptyHint.Visibility=Visibility.Collapsed;
     }

@@ -21,22 +21,30 @@ internal static partial class Program
     {
         Keyboard.ClearFocus();var key=new KeyEventArgs(Keyboard.PrimaryDevice,source,0,Key.Enter){RoutedEvent=routed,Source=target};target.RaiseEvent(key);return key;
     }
-    private static async Task V1MovePreview()
-    {await Open("cube-20mm.stl");await Workspace(1);Click(Named<Button>("MoveHandleButton"));Named<CheckBox>("SnapTransforms").IsChecked=false;ArrayNumber("PositionX",42);Click(Named<Button>("PreviewTransformButton"));await Idle();Assert(editor.Snapshot.Preview is {Request:MoveTransform},"Move preview missing.");}
     private static async Task V1TransformKeys()
     {
-        await V1MovePreview();var accepted=editor.Snapshot;var preview=accepted.Preview!;
-        using var source=new System.Windows.Interop.HwndSource(new System.Windows.Interop.HwndSourceParameters("isolated-v1-transform-keys"){Width=1,Height=1,WindowStyle=0});
-        var cancel=Named<Button>("CancelTransformButton");var key=V1Enter(source,cancel,Keyboard.PreviewKeyDownEvent);
-        Assert(!key.Handled&&ReferenceEquals(editor.Snapshot.Preview,preview)&&ReferenceEquals(editor.Snapshot.Scene,accepted.Scene),"Enter on CancelTransformButton was intercepted and accepted the transform.");
-        foreach(var name in new[]{"ApplyTransformButton","PreviewTransformButton","PositionX","SnapTransforms"})
-        {var target=Named<UIElement>(name);key=V1Enter(source,target,Keyboard.PreviewKeyDownEvent);Assert(!key.Handled&&ReferenceEquals(editor.Snapshot.Preview,preview),"Global Enter intercepted transform control: "+name);}
-        V1Enter(source,cancel,Keyboard.KeyDownEvent);await Idle();Assert(editor.Snapshot.Preview==null&&ReferenceEquals(editor.Snapshot.Scene,accepted.Scene),"Normal button Enter did not cancel the transform.");
-        await V1MovePreview();accepted=editor.Snapshot;preview=accepted.Preview!;var apply=Named<Button>("ApplyTransformButton");key=V1Enter(source,apply,Keyboard.PreviewKeyDownEvent);Assert(!key.Handled,"Apply Enter was globally intercepted.");V1Enter(source,apply,Keyboard.KeyDownEvent);await Idle();Assert(ReferenceEquals(editor.Snapshot.Scene,preview.Scene),"Normal Apply button Enter did not accept reviewed scene.");Click(Named<Button>("UndoButton"));Assert(ReferenceEquals(editor.Snapshot.Scene,accepted.Scene),"Keyboard Apply did not remain one Undo step.");
-        await V1MovePreview();accepted=editor.Snapshot;ArrayNumber("PositionX",48);var button=Named<Button>("PreviewTransformButton");key=V1Enter(source,button,Keyboard.PreviewKeyDownEvent);Assert(!key.Handled,"Preview Enter was intercepted.");V1Enter(source,button,Keyboard.KeyDownEvent);await Idle();Assert(ReferenceEquals(editor.Snapshot.Scene,accepted.Scene)&&editor.Snapshot.Preview is {} p&&Math.Abs(p.Scene.Bounds.Center.X-48)<.001,"Preview button Enter committed or failed to review changed draft.");
-        var field=Named<TextBox>("PositionX");CheckLocalTextUndo(field,"48","-12.375");key=V1Enter(source,field,Keyboard.PreviewKeyDownEvent);Assert(!key.Handled&&ReferenceEquals(editor.Snapshot.Scene,accepted.Scene),"TextBox Enter committed a transform.");Click(Named<Button>("CancelTransformButton"));
-        await V1MovePreview();preview=editor.Snapshot.Preview!;key=V1Enter(source,Named<UIElement>("ViewportSurface"),Keyboard.PreviewKeyDownEvent);Assert(key.Handled&&ReferenceEquals(editor.Snapshot.Scene,preview.Scene),"Neutral viewport Enter no longer accepts the reviewed transform.");
-        Pass("Transform footer Enter honors Cancel, Apply and Preview button behavior; TextBox/local Undo stays local and neutral viewport Enter still accepts the reviewed edit");
+        await Open("cube-20mm.stl");
+        await Workspace(1);
+        Click(Named<Button>("MoveHandleButton"));
+        var before=editor.Snapshot;
+        var field=Named<TextBox>("PositionX");
+        using var source=new System.Windows.Interop.HwndSource(new System.Windows.Interop.HwndSourceParameters("transform-entry"){Width=1,Height=1,WindowStyle=0});
+        ArrayNumber("PositionX",42);
+        var cancel=Named<Button>("DiscardTransformButton");
+        Reachable("DiscardTransformButton");
+        Assert(!V1Enter(source,cancel,Keyboard.PreviewKeyDownEvent).Handled,"Window intercepted Enter on the discard button.");
+        V1Enter(source,cancel,Keyboard.KeyDownEvent);
+        await Idle();
+        SameAccepted(before);
+        CheckLocalTextUndo(field,"10","-12.375");
+        ArrayNumber("PositionX",42);
+        Assert(V1Enter(source,field,Keyboard.PreviewKeyDownEvent).Handled,"Transform field did not handle Enter.");
+        await Idle();
+        Near(editor.Snapshot.Scene.Bounds.Center.X,42);
+        Assert(editor.Snapshot.Preview==null,"Enter left an unapplied preview.");
+        Click(Named<Button>("UndoButton"));
+        Assert(ReferenceEquals(editor.Snapshot.Scene,before.Scene),"Undo failed to restore the scene after numeric entry.");
+        Pass("Enter on Discard cancels. Local text Undo edits the field. Enter in the field accepts the exact move in one undoable step.");
     }
     private static async Task V1ConstructionTextKeys()
     {
@@ -58,7 +66,7 @@ internal static partial class Program
         var blocked=Path.Combine(output,"blocked.stl");Directory.CreateDirectory(blocked);await ExportViaDialog(false,blocked);SameAccepted(accepted);Assert(Named<TextBox>("ObjectName").Text==draft,"Failed export erased a rename draft.");
         await ExportViaDialog(false,null);SameAccepted(accepted);Assert(Named<TextBox>("ObjectName").Text==draft,"Cancelled export erased a rename draft.");
         navigationDialogs.OpenPath=NavigationInput("invalid.3mf");navigationDialogs.Decision=DirtyDecision.Discard;await ChooseDocument();SameAccepted(accepted);Assert(Named<TextBox>("ObjectName").Text==draft,"Failed Open erased an unchanged-context rename draft.");
-        navigationDialogs.SavePath=Path.Combine(output,"draft-preserved-save.3mf");Assert(await (Task<bool>)Invoke("Save",true)!,"Native Save failed.");Assert(ReferenceEquals(editor.Snapshot.Scene,accepted.Scene)&&Named<TextBox>("ObjectName").Text==draft&&Named<TextBlock>("SceneTitle").Text.Contains("draft-preserved-save"),"Save failed to preserve draft or refresh chrome.");
+        navigationDialogs.SavePath=Path.Combine(output,"draft-preserved-save.3mf");Assert(await (Task<bool>)Invoke("Save",true)!,"Native Save failed.");Assert(ReferenceEquals(editor.Snapshot.Scene,accepted.Scene)&&Named<TextBox>("ObjectName").Text==draft&&window.Title.Contains("draft-preserved-save"),"Save failed to preserve draft or refresh chrome.");
         Ok(editor.Execute(new AddCube()));Refresh();Assert(Named<TextBox>("ObjectName").Text!=draft,"A changed accepted scene retained an unrelated rename draft.");
         Pass("Export success/failure/cancel and failed Open preserve an unchanged-context rename draft; Save refreshes path/title while keeping it, and changed accepted context resets it");
     }
@@ -92,7 +100,7 @@ internal static partial class Program
             [2]=["SplitButton","CombineButton","RepairButton","HollowButton","SimplifyButton","SmoothButton","SeparateButton","EmbossButton","ExtrudeDownButton"],
             [3]=["MaterialButton","SurfaceMaterialButton","BrushMaterialButton"],
             [4]=["ViewIsometricButton","ViewTopButton","FitSceneButton","ViewGrid","ViewReflections","ViewShadingSmooth","ResetDisplayButton","AboutModelButton","RecoverButton"]};
-        foreach(var entry in names){await Workspace(entry.Key);Layout(1040,720);foreach(var name in new[]{"FileStrip","NewButton","RecentFilesMenu","SaveButton","SaveAsButton","ExportButton","UndoButton","RedoButton"}.Concat(entry.Value))Reachable(name);Assert(Named<FrameworkElement>("ViewportSurface").ActualHeight>=250,"Ribbon consumed the usable viewport.");Capture("v1-"+WorkspaceNames[entry.Key].ToLowerInvariant()+"-minimum",1040,720);}
+        foreach(var entry in names){await Workspace(entry.Key);Layout(1040,720);foreach(var name in new[]{"FileMenu","SaveButton","UndoButton","RedoButton"}.Concat(entry.Value))Reachable(name);Assert(Named<FrameworkElement>("ViewportSurface").ActualHeight>=250,"Ribbon consumed the usable viewport.");Capture("v1-"+WorkspaceNames[entry.Key].ToLowerInvariant()+"-minimum",1040,720);}
         var prompt=new SaveChangesDialog(editor.Snapshot,"opening another model");var content=(FrameworkElement)prompt.Content;var cancel=Tree(content).OfType<Button>().Single(b=>b.Content?.ToString()=="Cancel");Assert(cancel.IsDefault&&cancel.IsCancel&&prompt.Decision==DirtyDecision.Cancel,"Dirty prompt does not default to safe Cancel.");V1DialogCapture(content,442,"v1-save-discard-cancel");prompt.Close();
         foreach(var format in new[]{"model.stl","model.obj","model.ply","model.gltf","model.glb"})
         {var dialog=new UnitsDialog(format);Assert(dialog.Unit==UnitsDialog.DefaultUnit(format),"Format source-unit default changed.");V1DialogCapture((FrameworkElement)dialog.Content,392,"v1-"+Path.GetExtension(format)[1..]+"-units");dialog.Close();}

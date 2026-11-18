@@ -302,7 +302,7 @@ public partial class MainWindow
         RefreshInspection();
         if(!active) return;
         Toolbar.IsEnabled=ObjectList.IsEnabled=false;
-        EditPanel.Visibility=ConstructionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
+        ConstructionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
         var preview=snapshot.Preview is {Request:ArrangementRequest} p && p.Id==ownedArrangementPreview ? p : null;
         ArrangementSummary.Text=preview==null ? "Preview this arrangement before applying it. Apply accepts one undoable edit."
             : preview.Summary+(arrangementDraftChanged ? "\nSettings changed. Preview again before Apply." : "\nApply accepts; Cancel keeps the accepted document.");

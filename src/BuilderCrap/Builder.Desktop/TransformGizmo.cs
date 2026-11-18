@@ -6,12 +6,12 @@ namespace Builder.Desktop;
 
 public enum HandleMode { Move, Rotate, Scale }
 
-/// <summary>Axis is 0=X, 1=Y, 2=Z. Points and labels use viewport device-independent pixels.</summary>
-public sealed record GizmoStroke(int Axis, IReadOnlyList<Point> Points, Point LabelPoint);
+/// <summary>Axis is 0=X, 1=Y, 2=Z. Linear handles can be picked on either side of the selection.</summary>
+public sealed record GizmoStroke(int Axis, IReadOnlyList<Point> Points, IReadOnlyList<Point>? Opposite = null);
 
 /// <summary>Projection at the picked handle: pixels per world millimeter, or per degree for rotation.
 /// Ring hits also expose a captured world-plane angle reader; callers unwrap successive readings for circular drags.</summary>
-public sealed record GizmoHit(int Axis, Vector PixelsPerUnit, Func<Point,double?>? ReadAngleDegrees = null);
+public sealed record GizmoHit(int Axis, Vector PixelsPerUnit, Func<Point,double?>? ReadAngleDegrees = null, bool Proportional = false);
 
 /// <summary>An immutable presentation snapshot. It never reads or edits an EditorSession.</summary>
 public sealed class GizmoLayout
@@ -19,20 +19,27 @@ public sealed class GizmoLayout
     private readonly TransformGizmo.Projection? projection;
     private readonly IReadOnlyList<PickSegment> segments;
     internal sealed record PickSegment(int Axis, Point A, Point B, Func<double, Vector?> Mapping,
-        Func<Point,double?>? ReadAngleDegrees = null);
+        Func<Point,double?>? ReadAngleDegrees = null, bool Proportional = false);
 
     internal GizmoLayout(TransformGizmo.Projection? projection, Point center,
-        IReadOnlyList<GizmoStroke> strokes, IReadOnlyList<PickSegment> segments)
-    { this.projection=projection; Center=center; Strokes=strokes; this.segments=segments; }
+        IReadOnlyList<GizmoStroke> strokes, IReadOnlyList<PickSegment> segments,
+        Rect? scaleFrame = null, IReadOnlyList<Point>? proportionalHandles = null)
+    {
+        this.projection=projection; Center=center; Strokes=strokes; this.segments=segments;
+        ScaleFrame=scaleFrame; ProportionalHandles=proportionalHandles ?? Array.Empty<Point>();
+    }
 
     public bool IsVisible => Strokes.Count!=0;
     public Point Center { get; }
+    public Rect? ScaleFrame { get; }
+    public IReadOnlyList<Point> ProportionalHandles { get; }
+    public Point? ProportionalHandle => ProportionalHandles.Count == 0 ? null : ProportionalHandles[0];
     public IReadOnlyList<GizmoStroke> Strokes { get; }
 
     /// <summary>Null means invalid camera/point, behind the near plane, beyond far, or outside the viewport.</summary>
     public Point? Project(Vec3 worldPoint) => projection?.Project(worldPoint);
 
-    public GizmoHit? HitTest(Point point, double tolerance=10)
+    public GizmoHit? HitTest(Point point, double tolerance=11)
     {
         if(!double.IsFinite(point.X) || !double.IsFinite(point.Y) || !double.IsFinite(tolerance) || tolerance<0)
             return null;
@@ -49,7 +56,7 @@ public sealed class GizmoLayout
             if(segment.Mapping(t) is not {} mapping || !double.IsFinite(mapping.X) || !double.IsFinite(mapping.Y) ||
                 !double.IsFinite(mapping.LengthSquared) || mapping.LengthSquared<=1e-24)
                 continue;
-            nearest=distanceSquared; hit=new(segment.Axis,mapping,segment.ReadAngleDegrees);
+            nearest=distanceSquared; hit=new(segment.Axis,mapping,segment.ReadAngleDegrees,segment.Proportional);
         }
         return hit;
     }
@@ -63,22 +70,96 @@ public static class TransformGizmo
     private static readonly Vec3[] Axes=[new(1,0,0),new(0,1,0),new(0,0,1)];
 
     public static GizmoLayout Layout(ProjectionCamera camera, Size viewport, Vec3 center, HandleMode mode)
+        => Layout(camera,viewport,center,mode,null,[]);
+
+    internal static GizmoLayout Layout(ProjectionCamera camera, Size viewport, Vec3 center, HandleMode mode,
+        Bounds3? bounds, IEnumerable<Point3D> worldVertices)
     {
         var projection=Projection.Capture(camera,viewport);
         if(projection==null || projection.Project(center) is not {} origin)
             return new(projection,new(),Array.Empty<GizmoStroke>(),Array.Empty<GizmoLayout.PickSegment>());
         var strokes=new List<GizmoStroke>(); var segments=new List<GizmoLayout.PickSegment>();
-        var length=projection.WorldPerPixel(center)*HandlePixels;
+        var worldPerPixel = projection.WorldPerPixel(center);
+        var mappings = new Vector?[3];
+        var directions = new Vector[3];
+        var limits = new (double Min,double Max)[3];
+        if (mode is HandleMode.Move or HandleMode.Scale)
+            for (var axis=0; axis<3; axis++)
+            {
+                if (projection.ProjectDirection(center,Axes[axis]) is not {} mapping ||
+                    mapping.Length*worldPerPixel*HandlePixels < MinimumAxisPixels) continue;
+                mappings[axis] = mapping;
+                mapping.Normalize();
+                directions[axis] = mapping;
+            }
+        // Use the same unique world vertices as the selection outline. Only the extrema survive
+        // this pass; neither triangle corners nor a second set of projected points are retained.
+        var footprint = Rect.Empty;
+        double radiusSquared = 0;
+        foreach (var vertex in worldVertices)
+        {
+            if (projection.Project(new(vertex.X,vertex.Y,vertex.Z)) is not {} point)
+            {
+                footprint = Rect.Empty;
+                break;
+            }
+            footprint.Union(point);
+            var offset = point-origin;
+            radiusSquared = Math.Max(radiusSquared,offset.LengthSquared);
+            for (var axis=0; axis<3 && mode!=HandleMode.Rotate; axis++)
+            {
+                var extent = Vector.Multiply(offset,directions[axis]);
+                limits[axis] = (Math.Min(limits[axis].Min,extent),Math.Max(limits[axis].Max,extent));
+            }
+        }
+        var maxReach = Math.Max(48, Math.Min(viewport.Width, viewport.Height)*.42);
+        var radius = footprint.IsEmpty ? HandlePixels : Math.Clamp(Math.Sqrt(radiusSquared)+12, 46, maxReach);
+        var length = worldPerPixel*radius;
+        Rect? scaleFrame = null;
+        var proportionalHandles = new List<Point>(4);
+        var screen = new Rect(new Point(), viewport);
         if(double.IsFinite(length) && length>0 && mode is HandleMode.Move or HandleMode.Scale)
         {
-            for(var axis=0;axis<3;axis++)
+            for (var axis=0; axis<3; axis++)
             {
-                if(projection.Project(center+Axes[axis]*length) is not {} end) continue;
-                var delta=end-origin;
-                if(delta.Length<MinimumAxisPixels) continue;
-                var mapping=delta/length;
-                strokes.Add(new(axis,Array.AsReadOnly(new[]{origin,end}),end));
-                segments.Add(new(axis,origin,end,_=>mapping));
+                if (mappings[axis] is not {} mapping) continue;
+                var unit = directions[axis];
+                Point[]? Handle(int side)
+                {
+                    var direction = unit*side;
+                    var extent = side>0 ? limits[axis].Max : -limits[axis].Min;
+                    var reach = footprint.IsEmpty ? HandlePixels : Math.Clamp(extent+24, 43, maxReach);
+                    var end = origin+direction*reach;
+                    var start = end-direction*21;
+                    if (!screen.Contains(start) || !screen.Contains(end)) return null;
+                    var dragMapping = mode == HandleMode.Scale ? mapping*side : mapping;
+                    segments.Add(new(axis,start,end,_=>dragMapping));
+                    return [start,end];
+                }
+                var positive = Handle(1);
+                var negative = Handle(-1);
+                if (positive != null || negative != null)
+                    strokes.Add(new(axis,positive ?? negative!,positive != null ? negative : null));
+            }
+            if (mode == HandleMode.Scale && bounds is {} selected && !footprint.IsEmpty)
+            {
+                var frame = footprint;
+                frame.Inflate(3,3);
+                var sizes = new[] {selected.Size.X, selected.Size.Y, selected.Size.Z};
+                var axis = Array.IndexOf(sizes,sizes.Max());
+                if (sizes[axis] > 0 && frame.Width > 12 && frame.Height > 12)
+                {
+                    scaleFrame = frame;
+                    foreach (var corner in new[] {frame.TopRight,frame.TopLeft,frame.BottomRight,frame.BottomLeft})
+                    {
+                        if (!screen.Contains(corner)) continue;
+                        var radial = corner-origin;
+                        // A corner moved its full screen radius when the selected size doubles.
+                        var mapping = radial*(2/sizes[axis]);
+                        proportionalHandles.Add(corner);
+                        segments.Add(new(axis,corner-new Vector(1,0),corner+new Vector(1,0),_=>mapping, Proportional:true));
+                    }
+                }
             }
         }
         else if(double.IsFinite(length) && length>0 && mode==HandleMode.Rotate)
@@ -99,7 +180,7 @@ public static class TransformGizmo
                 // A clipped ring is hidden as a whole. A line-like edge-on ring has
                 // two ambiguous angles at one pixel and cannot provide a reliable drag.
                 if(!complete || MinorRadius(points)<MinimumRingRadius) continue;
-                strokes.Add(new(axis,Array.AsReadOnly(points),points[0]));
+                strokes.Add(new(axis,Array.AsReadOnly(points)));
                 double? ReadAngle(Point point)=>projection.ReadPlaneAngle(point,center,u,v);
                 for(var i=0;i<RingSegments;i++)
                 {
@@ -118,7 +199,7 @@ public static class TransformGizmo
                 }
             }
         }
-        return new(projection,origin,strokes.AsReadOnly(),segments.AsReadOnly());
+        return new(projection,origin,strokes.AsReadOnly(),segments.AsReadOnly(),scaleFrame,proportionalHandles.AsReadOnly());
     }
 
     private static double MinorRadius(Point[] points)

@@ -3,8 +3,6 @@ using System.Collections.Immutable;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Media.Media3D;
-using System.Windows.Shapes;
 
 namespace Builder.Desktop;
 
@@ -140,7 +138,7 @@ public partial class MainWindow
         MaterialSummary.Text=paintMode==PaintMode.Brush?(candidate==null?"Release a stroke to preview. Apply accepts all reviewed strokes.":$"{brushStrokes.Length} reviewed strokes · {candidate.SurfaceBrush?.TriangleIndices.Length??0} triangles."):candidate==null?"Preview the result before applying it.":materialsDirty?"Settings changed. Preview again before Apply.":ReviewedSurfaceMaterial() is {} material?$"{material.Name} · {material.Color.Hex}":paintMode==PaintMode.Surface?"Apply returns this region to the object base color.":"Apply removes the material assignment.";
         MaterialPanel.IsEnabled=operation==null&&brushGesture==null&&!materialsCancelRequested;MaterialShowOriginal.IsEnabled=candidate!=null&&operation==null&&brushGesture==null;
         PreviewMaterialButton.IsEnabled=brushGesture==null&&operation==null&&!materialsCancelRequested&&(paintMode==PaintMode.Brush?!brushStrokes.IsEmpty:paintMode!=PaintMode.Surface||materialSurfaceSeed!=null);ApplyMaterialButton.IsEnabled=brushGesture==null&&candidate!=null&&!materialsDirty&&operation==null&&snapshot.Revision==materialsBaseRevision;CancelMaterialButton.IsEnabled=!materialsCancelRequested;
-        Toolbar.IsEnabled=ObjectList.IsEnabled=false;ObjectsOverview.Visibility=EditPanel.Visibility=ConstructionTools.Visibility=InspectionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
+        Toolbar.IsEnabled=ObjectList.IsEnabled=false;ObjectsOverview.Visibility=ConstructionTools.Visibility=InspectionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
         PreviewBanner.Visibility=candidate==null?Visibility.Collapsed:Visibility.Visible;PreviewLabel.Text=MaterialShowOriginal.IsChecked==true?"Original · material not yet applied":"Material preview · not yet applied";EmptyHint.Visibility=Visibility.Collapsed;
     }
     private SurfaceMaterial? ReviewedSurfaceMaterial()=>reviewedMaterial switch
@@ -175,23 +173,11 @@ public partial class MainWindow
             snapshot.Preview is {Request:SplitRequest or BooleanRequest} p&&p.ResultObjectIds.Contains(obj.Id) ||
             constructionMode!=null&&snapshot.Preview==null&&(OperandA.SelectedValue is Guid a&&a==obj.Id||constructionMode==ConstructionMode.Boolean&&OperandB.SelectedValue is Guid b&&b==obj.Id);
     }
-    private Color ObjectDisplayColor(SceneObject obj,EditorSnapshot snapshot,IReadOnlySet<Guid> selectedIds)
+    private static Color DisplayRgb(RgbColor rgb) => Color.FromRgb(rgb.R,rgb.G,rgb.B);
+    private Color ObjectDisplayColor(SceneObject obj,EditorSnapshot snapshot)
     {
-        if(HasMaterialRoleColor(obj,snapshot))return SeparateDisplayColor(obj,snapshot)??ConstructionColor(obj,snapshot,selectedIds);
-        return editor.Presentation.Snapshot.Settings.Colors&&obj.Material is {} material?Color.FromRgb(material.Color.R,material.Color.G,material.Color.B):ConstructionColor(obj,snapshot,selectedIds);
-    }
-    private void DrawMaterialSelection()
-    {
-        MaterialSelectionOverlay.Children.Clear();var snapshot=editor.Snapshot;var ids=(snapshot.Preview?.SelectedObjectIds??snapshot.SelectedObjectIds).ToHashSet();if(ids.Count==0)ids=snapshot.SelectedObjectIds.ToHashSet();
-        var projection=TransformGizmo.Projection.Capture(Viewport.Camera as ProjectionCamera,Viewport.RenderSize);if(projection==null)return;
-        foreach(var obj in DisplayedScene(snapshot).Objects.Where(o=>(o.Material!=null||!o.TriangleMaterials.IsEmpty)&&ids.Contains(o.Id)&&SeparateDisplayVisible(o,snapshot)))
-        {
-            var b=obj.Bounds;var corners=new Vec3[8];for(var i=0;i<8;i++)corners[i]=new((i&1)==0?b.Min.X:b.Max.X,(i&2)==0?b.Min.Y:b.Max.Y,(i&4)==0?b.Min.Z:b.Max.Z);
-            for(var i=0;i<8;i++)foreach(var axis in new[]{1,2,4})if((i&axis)==0&&projection.Project(corners[i]) is {} start&&projection.Project(corners[i|axis]) is {} end)
-            {
-                MaterialSelectionOverlay.Children.Add(new Line{X1=start.X,Y1=start.Y,X2=end.X,Y2=end.Y,Stroke=Brushes.White,StrokeThickness=3.5});
-                MaterialSelectionOverlay.Children.Add(new Line{X1=start.X,Y1=start.Y,X2=end.X,Y2=end.Y,Stroke=new SolidColorBrush(Color.FromRgb(35,51,61)),StrokeThickness=1.3,StrokeDashArray=new(){4,3}});
-            }
-        }
+        if(HasMaterialRoleColor(obj,snapshot))return SeparateDisplayColor(obj,snapshot)??ConstructionColor(obj,snapshot);
+        return DisplayRgb(editor.Presentation.Snapshot.Settings.Colors && obj.Material is {} material
+            ? material.Color : SurfaceMaterial.Neutral.Color);
     }
 }

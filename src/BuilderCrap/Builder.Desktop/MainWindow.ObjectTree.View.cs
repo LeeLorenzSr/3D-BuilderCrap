@@ -8,7 +8,8 @@ namespace Builder.Desktop;
 
 public partial class MainWindow
 {
-    private const double ObjectTreeRowHeight=34;
+    private double ObjectTreeRowHeight =>
+        FindObjectTreeVisual<ListBoxItem>(ObjectList, row => row.RenderSize.Height > 0)?.RenderSize.Height ?? 34;
     private readonly record struct TreeScope(Guid? GroupId);
     private sealed class TreeViewState
     {
@@ -42,9 +43,10 @@ public partial class MainWindow
         if(pendingTreeRestore!=null || restoringTreeView || displayedTree.Count==0 || ObjectList.ActualHeight<=0 ||
             ObjectsOverview.Visibility==Visibility.Collapsed || ObjectTreeScroll() is not {} scroll) return;
         var state=CurrentTreeView;
-        var index=Math.Clamp((int)Math.Floor(scroll.VerticalOffset/ObjectTreeRowHeight),0,displayedTree.Count-1);
+        var rowHeight=ObjectTreeRowHeight;
+        var index=Math.Clamp((int)Math.Floor(scroll.VerticalOffset/rowHeight),0,displayedTree.Count-1);
         state.TopRowId=displayedTree[index].Id; state.TopOwnerId=displayedTree[index].SelectionUnit.Id;
-        state.PreviousTopIndex=index; state.OffsetWithinRow=scroll.VerticalOffset-index*ObjectTreeRowHeight;
+        state.PreviousTopIndex=index; state.OffsetWithinRow=scroll.VerticalOffset-index*rowHeight;
     }
     private void QueueObjectTreeRestore(bool scopeChanged,bool hadTreeFocus,Guid? createdSelection=null)
     {
@@ -72,16 +74,17 @@ public partial class MainWindow
         var offset=restore.Offset;
         if(index<0) {index=displayedTree.ToList().FindIndex(r=>r.Id==restore.OwnerId); offset=0;}
         if(index<0) index=Math.Clamp(restore.PreviousIndex,0,Math.Max(0,displayedTree.Count-1));
-        var desiredOffset=index*ObjectTreeRowHeight+offset;
+        var rowHeight=ObjectTreeRowHeight;
+        var desiredOffset=index*rowHeight+offset;
         if(restore.RevealId is {} reveal)
         {
             var revealIndex=displayedTree.ToList().FindIndex(r=>r.Id==reveal);
-            var height=Math.Max(ObjectTreeRowHeight,scroll.ViewportHeight);
+            var height=Math.Max(rowHeight,scroll.ViewportHeight);
             if(revealIndex>=0)
             {
-                var top=revealIndex*ObjectTreeRowHeight;
+                var top=revealIndex*rowHeight;
                 if(top<desiredOffset) desiredOffset=top;
-                else if(top+ObjectTreeRowHeight>desiredOffset+height) desiredOffset=top+ObjectTreeRowHeight-height;
+                else if(top+rowHeight>desiredOffset+height) desiredOffset=top+rowHeight-height;
             }
         }
         pendingTreeRestore=null; restoringTreeView=true;

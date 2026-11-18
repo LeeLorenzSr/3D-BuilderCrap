@@ -114,7 +114,7 @@ public partial class MainWindow
         PreviewSimplifyButton.IsEnabled=operation==null&&!simplifyCancelRequested;
         ApplySimplifyButton.IsEnabled=candidate!=null&&!simplifyDraftChanged&&operation==null&&!simplifyCancelRequested&&snapshot.Revision==simplifyBaseRevision;
         CancelSimplifyButton.IsEnabled=!simplifyCancelRequested;
-        Toolbar.IsEnabled=ObjectList.IsEnabled=false;ObjectsOverview.Visibility=EditPanel.Visibility=ConstructionTools.Visibility=InspectionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
+        Toolbar.IsEnabled=ObjectList.IsEnabled=false;ObjectsOverview.Visibility=ConstructionTools.Visibility=InspectionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
         PreviewBanner.Visibility=candidate==null?Visibility.Collapsed:Visibility.Visible;
         PreviewLabel.Text=SimplifyShowOriginal.IsChecked==true?"Original · simplify not yet applied":"Simplify result preview · not yet applied";EmptyHint.Visibility=Visibility.Collapsed;
     }

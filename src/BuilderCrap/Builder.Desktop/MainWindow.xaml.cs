@@ -59,7 +59,7 @@ public partial class MainWindow : Window
     {
         if(!IsLoaded||Dispatcher.HasShutdownStarted)return;
         if(!Dispatcher.CheckAccess()){_=Dispatcher.BeginInvoke(()=>DesktopSystemChanged(sender,e));return;}
-        gridBounds=null;RenderScene(); // Chrome/theme refresh retains accepted geometry, tool drafts and preview ownership.
+        floorCenter=null;RenderScene(); // Chrome/theme refresh retains accepted geometry, tool drafts and preview ownership.
     }
     private void UpdateSelectionPresentation()
     {
@@ -99,20 +99,20 @@ public partial class MainWindow : Window
         RefreshObjectTree(snapshot.Scene,snapshot.SelectedObjectIds);
         var selectedIds=snapshot.SelectedObjectIds.ToHashSet();
         var obj = SelectedTarget;
-        EditPanel.IsEnabled = obj != null;
         ObjectNameLabel.Text=SelectedGroup!=null ? "Group name" : snapshot.EditingGroupId!=null ? "Member name" : "Object name";
         System.Windows.Automation.AutomationProperties.SetName(ObjectName,ObjectNameLabel.Text);
-        SelectionHint.Text = obj == null ? "Select objects to edit. Ctrl adds or removes; Shift selects a range." :
-            $"{obj.Name} · {snapshot.SelectedObjectIds.Length} object{(snapshot.SelectedObjectIds.Length==1 ? "" : "s")}";
+        var count = snapshot.SelectedObjectIds.Length;
+        SelectionHint.Visibility = count == 1 ? Visibility.Collapsed : Visibility.Visible;
+        SelectionHint.Text = count == 0 ? "Select an item to edit." : $"{count} objects selected";
         RefreshTransformFieldPresentation();
         if(obj != null)
         {
             if(!preserveObjectNameDraft)ObjectName.Text = obj.Name;
-            ObjectSummary.Text = $"{snapshot.Scene.Objects.Where(o=>selectedIds.Contains(o.Id)).Sum(o=>o.Mesh.Triangles.Length):N0} triangles · millimeters · Z up";
+            ObjectSummary.Text = $"{snapshot.Scene.Objects.Where(o=>selectedIds.Contains(o.Id)).Sum(o=>o.Mesh.Triangles.Length):N0} triangles";
         }
         else { if(!preserveObjectNameDraft)ObjectName.Text = ""; ObjectSummary.Text = ""; }
         var title = snapshot.FilePath == null ? "Untitled scene" : Path.GetFileName(snapshot.FilePath);
-        SceneTitle.Text = title + (snapshot.IsDirty ? " • Unsaved changes" : "");
+
         Title = title + (snapshot.IsDirty ? " *" : "") + " — 3D BuilderCrap";
         var bnd = snapshot.Scene.Bounds.Size;
         SceneSummary.Text = snapshot.Scene.Objects.Length == 0 ? "" : $"{snapshot.Scene.Objects.Length} object{(snapshot.Scene.Objects.Length == 1 ? "" : "s")}  ·  {bnd.X:0.###} × {bnd.Y:0.###} × {bnd.Z:0.###} mm";
@@ -151,7 +151,6 @@ public partial class MainWindow : Window
         Message(result.Message,!result.Succeeded);
         if(result.Succeeded) { Refresh(); ViewportSurface.Focus(); }
     }
-    private void RotateClick(object sender,RoutedEventArgs e) => PreviewNumericTransform(HandleMode.Rotate);
     private async void DuplicateClick(object sender,RoutedEventArgs e)
     {
         if(!ArrangementSelectionAvailable || editor.Snapshot.SelectedObjectIds.IsEmpty) return;
@@ -177,9 +176,6 @@ public partial class MainWindow : Window
         { Message("Enter a finite number in each field. Your scene is unchanged.",true); return false; }
         value = new(a,b,c); return true;
     }
-    private void ResizeClick(object sender,RoutedEventArgs e) => PreviewNumericTransform(HandleMode.Scale);
-    private void MoveClick(object sender,RoutedEventArgs e) => PreviewNumericTransform(HandleMode.Move);
-    private void ResetClick(object sender,RoutedEventArgs e) { CancelTransform(); }
     private void SizeInputChanged(object sender,TextChangedEventArgs e)
     {
         if(refreshing || AspectLock?.IsChecked != true || SelectedTarget is not {} obj || sender is not TextBox field || !field.IsKeyboardFocused) return;
@@ -390,10 +386,17 @@ public partial class MainWindow : Window
                 (e.Key is Key.O or Key.I or Key.S or Key.D || Keyboard.FocusedElement is not TextBox && e.Key is Key.Z or Key.Y or Key.A)) e.Handled=true;
             return;
         }
+        if(e.Key==Key.Enter && Keyboard.Modifiers==ModifierKeys.None && ShowTransformHud &&
+            (IsDisplayedTransformField(e.OriginalSource) || IsDisplayedTransformField(Keyboard.FocusedElement)))
+        {
+            e.Handled=true;
+            if(!e.IsRepeat && transformDraftChanged && !transformUpdating) CommitNumericTransform(DisplayedTransformMode);
+            return;
+        }
         if(handleMode != null)
         {
             if(e.Key == Key.Escape) { CancelTransform(); e.Handled=true; }
-            else if(e.Key == Key.Enter && Keyboard.FocusedElement is not Control && e.OriginalSource is not Control && ApplyTransformButton.IsEnabled)
+            else if(e.Key == Key.Enter && Keyboard.FocusedElement is not Control && e.OriginalSource is not Control && SettleConfirmButton.IsEnabled)
             { ApplyTransformClick(this,e); e.Handled=true; }
             else if(e.Key == Key.F && Keyboard.FocusedElement is not TextBox && !transformUpdating && handleDrag == null)
             { if(Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) FitSelection(); else FitScene(); e.Handled=true; }
@@ -427,24 +430,6 @@ public partial class MainWindow : Window
     private void RenderScene()
     {
         RefreshViewportModels(); UpdateCamera();
-    }
-    private static void AddGrid(Model3DGroup group,Scene scene)
-    {
-        var size = scene.Objects.IsEmpty ? 80 : Math.Max(scene.Bounds.Size.X,scene.Bounds.Size.Y)*1.6;
-        size = Math.Max(size,40); var step = Math.Pow(10,Math.Floor(Math.Log10(size/10)));
-        var center = scene.Objects.IsEmpty ? new Vec3(10,10,0) : scene.Bounds.Center;
-        var extent = Math.Ceiling(size/step)*step; var width = step*0.013;
-        var mesh = new MeshGeometry3D();
-        void Quad(double x1,double y1,double x2,double y2)
-        {
-            var start=mesh.Positions.Count;
-            mesh.Positions.Add(new(x1,y1,-0.02));mesh.Positions.Add(new(x2,y1,-0.02));mesh.Positions.Add(new(x2,y2,-0.02));mesh.Positions.Add(new(x1,y2,-0.02));
-            foreach(var n in new[]{0,1,2,0,2,3}) mesh.TriangleIndices.Add(start+n);
-        }
-        var cx = Math.Round(center.X/step)*step; var cy = Math.Round(center.Y/step)*step;
-        for(double i=-extent;i<=extent;i+=step) { Quad(cx+i-width,cy-extent,cx+i+width,cy+extent); Quad(cx-extent,cy+i-width,cx+extent,cy+i+width); }
-        mesh.Freeze(); var material = new DiffuseMaterial(new SolidColorBrush(SystemParameters.HighContrast?SystemColors.WindowTextColor:Color.FromRgb(201,213,222)));
-        group.Children.Add(new GeometryModel3D(mesh,material) { BackMaterial=material });
     }
     private void FitClick(object sender,RoutedEventArgs e) => FitScene();
     private void FitSelectionClick(object sender,RoutedEventArgs e) => FitSelection();
@@ -507,9 +492,11 @@ public partial class MainWindow : Window
         orthographicCamera.FarPlaneDistance=camera.FarPlaneDistance;
         orthographicCamera.Width=2*distance*Math.Tan(camera.FieldOfView*Math.PI/360);
         Viewport.Camera=useOrthographic ? orthographicCamera : camera;
+        FloorViewport.Camera=Viewport.Camera;
+        RefreshFloor();
         DrawTransformHandles();
         DrawMeasurement();
-        DrawMaterialSelection();
+        DrawSelectionOutline();
     }
     private async void ViewportDown(object sender,MouseButtonEventArgs e)
     {
@@ -524,7 +511,7 @@ public partial class MainWindow : Window
         if(e.ChangedButton==MouseButton.Left&&materialsActive&&paintMode==PaintMode.Surface)
         {e.Handled=true;await PickSurfaceMaterialAt(e.GetPosition(Viewport));return;}
         if(e.ChangedButton == MouseButton.Left && BeginHandleDrag(e.GetPosition(Viewport)))
-        { ViewportSurface.CaptureMouse(); e.Handled=true; return; }
+        { if(!ViewportSurface.CaptureMouse()) CancelTransform(); e.Handled=true; return; }
         if(transformUpdating || handleDrag != null) return;
         if(e.ChangedButton is MouseButton.Right or MouseButton.Middle) { drag=e.ChangedButton; ViewportSurface.CaptureMouse(); e.Handled=true; }
         else if(e.ChangedButton == MouseButton.Left && !ModalToolActive && constructionMode == null && handleMode == null && arrangementMode == null && operation == null)

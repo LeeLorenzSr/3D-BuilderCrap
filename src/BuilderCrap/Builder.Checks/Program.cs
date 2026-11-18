@@ -5,11 +5,17 @@ using System.Text.Json;
 
 var root = Path.GetFullPath(args.Length > 0 ? args[0] : "../..");
 var knownModes=new HashSet<string>(StringComparer.Ordinal) {"--v1-workflows-only","--surface-brush-only","--radial-array-only","--center-on-plate-only","--rectangular-array-only","--distribution-only","--view-preferences-only","--reflections-only","--shadows-only","--shading-only","--view-controls-only","--recovery-only","--recovery-child","--gltf-only","--ply-only","--obj-only","--model-metadata-only","--document-transitions-only","--surface-paint-only","--image-edge-stamp-only","--image-contour-only","--materials-only","--extrude-down-only","--separate-only","--smooth-only","--simplify-only","--hollow-only","--image-relief-only","--text-emboss-only","--construction-only",
-    "--mirror-measurement-only","--primitives-only","--performance-only","--member-editing-only","--group-editing-only"};
+    "--mirror-measurement-only","--primitives-only","--performance-only","--member-editing-only","--group-editing-only","--native-save-only"};
 foreach(var option in args.Where(a=>a.StartsWith("--",StringComparison.Ordinal)))
     if(!knownModes.Contains(option)&&option!="--evidence-root")throw new ArgumentException("Unknown check option: "+option);
 if(args.Count(knownModes.Contains)>1)throw new ArgumentException("Choose only one focused check mode.");
 _=NewFeatureEvidenceRoot(args,root); // Validate routing before any check can write evidence.
+if(args.Contains("--native-save-only"))
+{
+    await NativeSaveChecks.Run(root,NewFeatureEvidenceRoot(args,root) ??
+        Path.Combine(root,".local","evidence","native-save-"+Guid.NewGuid().ToString("N")));
+    return;
+}
 if(args.Contains("--v1-workflows-only"))
 {
     await V1WorkflowChecks.Run(root,NewFeatureEvidenceRoot(args,root));

@@ -167,7 +167,7 @@ public partial class MainWindow
         MeasurementPanel.Visibility=MeasurementActions.Visibility=MeasurementOverlay.Visibility=measure?Visibility.Visible:Visibility.Collapsed;
         if(!InspectionActive){MeasurementOverlay.Children.Clear();return;}
         Toolbar.IsEnabled=ObjectList.IsEnabled=false;
-        ObjectsOverview.Visibility=EditPanel.Visibility=ConstructionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
+        ObjectsOverview.Visibility=ConstructionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
         if(mirror)
         {
             var candidate=editor.Snapshot.Preview is {Request:MirrorTransform} p&&p.Id==ownedMirrorPreview?p:null;

@@ -117,9 +117,9 @@ internal static partial class Program
             Near(reopened.Snapshot.Scene.Bounds.Min.Y,expectedBounds.Min.Y); Near(reopened.Snapshot.Scene.Bounds.Max.Y,expectedBounds.Max.Y);
             Near(reopened.Snapshot.Scene.Bounds.Min.Z,expectedBounds.Min.Z); Near(reopened.Snapshot.Scene.Bounds.Max.Z,expectedBounds.Max.Z);
         }
-        Click(Named<Button>("MoveHandleButton"));
+        Click(Named<Button>("MoveHandleButton"));Named<TextBox>("PositionX").Text="12.375";
         Assert(!Named<Button>("ExportSelectionButton").IsEnabled && !Named<Button>("DuplicateButton").IsEnabled && !Named<Button>("DeleteButton").IsEnabled,"Transform mode leaves unrelated tree commands enabled.");
-        Click(Named<Button>("CancelTransformButton"));
+        Click(Named<Button>("DiscardTransformButton"));
         Click(Named<Button>("SelectAllButton"));
         Click(Named<Button>("AlignButton")); Assert(!Named<Button>("ExportSelectionButton").IsEnabled,"Arrangement mode permits selection export.");
         Click(Named<Button>("CancelArrangementButton"));

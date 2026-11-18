@@ -111,7 +111,7 @@ internal static partial class Program
         }
         Assert(FirstMeasurement()!=null&&CurrentMeasurement()==null,"Camera cancellation erased accepted measurement points.");SameAccepted(before);
         Invoke("MirrorClick",window,new RoutedEventArgs());Invoke("MoveHandleClick",window,new RoutedEventArgs());Invoke("AddCubeClick",window,new RoutedEventArgs());Invoke("UndoClick",window,new RoutedEventArgs());
-        Assert(Named<FrameworkElement>("MirrorActions").Visibility==Visibility.Collapsed&&Named<FrameworkElement>("PrimitiveActions").Visibility==Visibility.Collapsed&&Named<FrameworkElement>("TransformActions").Visibility==Visibility.Collapsed,"Conflicting tool replaced active measurement.");SameAccepted(before);
+        Assert(Named<FrameworkElement>("MirrorActions").Visibility==Visibility.Collapsed&&Named<FrameworkElement>("PrimitiveActions").Visibility==Visibility.Collapsed&&Named<FrameworkElement>("TransformHud").Visibility==Visibility.Collapsed,"Conflicting tool replaced active measurement.");SameAccepted(before);
         Click(Named<Button>("ResetMeasurementButton"));var pendingPick=(Task)Invoke("PickMeasurementAt",ProjectMeasuredWorld(new(5,5,20)))!;
         Click(Named<Button>("DoneMeasurementButton"));await pendingPick;
         Assert(FirstMeasurement()==null&&CurrentMeasurement()==null,"A late result revived a closed measurement.");SameAccepted(before);

@@ -2,5 +2,8 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF>
   </PropertyGroup>
-  <ItemGroup><ProjectReference Include="../Builder.Desktop/Builder.Desktop.csproj" /></ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Builder.Desktop/Builder.Desktop.csproj" />
+    <ProjectReference Include="../Builder.Mcp.Server/Builder.Mcp.Server.csproj" />
+  </ItemGroup>
 </Project>

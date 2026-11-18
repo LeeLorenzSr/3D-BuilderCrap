@@ -23,30 +23,28 @@ internal static partial class Program
         }
         SetTransformTab(1);var accepted=editor.Snapshot;
         CheckLocalTextUndo(Named<TextBox>("PositionX"),"10","-12.375");SameAccepted(accepted);
-        Click(Named<Button>("CancelTransformButton"));SameAccepted(accepted);
+        Click(Named<Button>("DiscardTransformButton"));SameAccepted(accepted);
         CheckLocalTextUndo(Named<TextBox>("ObjectName"),"Part","部品 Δ");SameAccepted(accepted);
         Refresh();
         observations.Add(new{test="Numeric/name text editing preservation",numericFields=numericNames,nameFields=new[]{"ObjectName","GroupName"},localUndo="Explicit routed Undo target; no OS keyboard or IME composition claim"});
         Pass("Numeric fields retain local text undo while object/group names retain IME; routed text Undo preserves accepted Core state");
 
-        // Read actual culture-formatted negative/fractional drafts through the same preview controls.
+        // Read actual culture-formatted negative/fractional drafts through the direct-entry controls.
         var beforeMove=editor.Snapshot;
-        async Task PreviewSignedMove()
+        async Task DraftSignedMove()
         {
             Click(Named<Button>("MoveHandleButton"));Named<CheckBox>("SnapTransforms").IsChecked=false;
             Named<TextBox>("PositionX").Text=(-12.375).ToString(CultureInfo.CurrentCulture);
             Named<TextBox>("PositionY").Text=4.625.ToString(CultureInfo.CurrentCulture);
             Named<TextBox>("PositionZ").Text=(-.875).ToString(CultureInfo.CurrentCulture);
-            Click(Named<Button>("PreviewTransformButton"));await Idle();SameAccepted(beforeMove);
-            var center=editor.Snapshot.Preview!.Scene.Bounds.Center;
-            Near(center.X,-12.375);Near(center.Y,4.625);Near(center.Z,-.875);
+            await Idle();SameAccepted(beforeMove);Assert(editor.Snapshot.Preview==null,"Typing created an unsolicited geometry preview.");
         }
-        await PreviewSignedMove();Click(Named<Button>("CancelTransformButton"));SameAccepted(beforeMove);
-        await PreviewSignedMove();Click(Named<Button>("ApplyTransformButton"));
-        Near(editor.Snapshot.Scene.Bounds.Center.X,-12.375);
+        await DraftSignedMove();Click(Named<Button>("DiscardTransformButton"));SameAccepted(beforeMove);
+        await DraftSignedMove();Click(Named<Button>("CommitTransformButton"));await Idle();
+        var center=editor.Snapshot.Scene.Bounds.Center;Near(center.X,-12.375);Near(center.Y,4.625);Near(center.Z,-.875);
         Click(Named<Button>("UndoButton"));
         Assert(ReferenceEquals(editor.Snapshot.Scene,beforeMove.Scene) && editor.Snapshot.SelectedObjectIds.SequenceEqual(beforeMove.SelectedObjectIds) && editor.Snapshot.IsDirty==beforeMove.IsDirty,"Scene Undo after numeric input did not restore exact accepted state.");
-        Pass("Signed fractional numeric input previews/cancels safely and Apply uses scene Undo independently of local text Undo");
+        Pass("Signed fractional numeric drafts cancel safely and Apply uses scene Undo independently of local text Undo");
 
         await Open("assembly-mm.3mf");Click(Named<Button>("SelectAllButton"));var ungrouped=editor.Snapshot;
         Click(Named<Button>("GroupButton"));Layout(1040,680);await Idle();

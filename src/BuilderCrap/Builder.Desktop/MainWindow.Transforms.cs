@@ -13,11 +13,18 @@ namespace Builder.Desktop;
 public partial class MainWindow
 {
     private HandleMode? handleMode;
+    private HandleMode preferredHandleMode = HandleMode.Move;
+    private HandleMode DisplayedTransformMode => handleMode ?? preferredHandleMode;
+    private bool settling;
+    private bool ShowTransformHud => transformsReady && !settling && SelectedTarget != null && !ModalToolActive &&
+        constructionMode == null && arrangementMode == null && !mcpOperationActive &&
+        (editor.Snapshot.Preview == null || ownedTransformPreview == editor.Snapshot.Preview?.Id);
     private GizmoLayout? gizmoLayout;
-    private sealed record HandleGesture(Point Start,GizmoHit Hit,TransformRequest Initial,Vec3 BaseSize,bool Uniform)
+    private sealed record HandleGesture(Point Start,GizmoHit Hit,TransformRequest Initial,Vec3 BaseSize,bool Uniform,double SnapStep,Size ViewportSize)
     {
         public double LastAngle {get;set;}
         public double AngleDelta {get;set;}
+        public bool HasValidPointer {get;set;}=true;
     }
     private HandleGesture? handleDrag;
     private TransformRequest? pendingTransform;
@@ -25,85 +32,112 @@ public partial class MainWindow
     private long transformBaseRevision, transformDraftVersion;
     private Guid? transformEditingGroupId;
     private bool transformsReady, transformUpdating, cancelTransformRequested, transformDraftChanged;
+    private bool commitTransformWhenReady;
     private readonly bool[] transformFieldsDirty=[true,true,true];
-    private static readonly Color[] AxisColors=[Color.FromRgb(184,54,53),Color.FromRgb(39,125,76),Color.FromRgb(39,105,192)];
+    private static readonly Color[] AxisColors=[Color.FromRgb(210,78,60),Color.FromRgb(46,159,91),Color.FromRgb(40,143,211)];
 
     private void InitializeTransforms()
     {
+        TransformTabs.SelectedIndex=TransformFieldIndex(preferredHandleMode);
         transformsReady=true;
         foreach(var box in new[]{SizeX,SizeY,SizeZ,PositionX,PositionY,PositionZ,RotationX,RotationY,RotationZ})
             box.TextChanged+=TransformDraftChanged;
-        Viewport.SizeChanged+=(_,_)=>{ CancelBrushInput();CancelPendingPick(); if(handleDrag!=null) CancelTransform(); else DrawTransformHandles(); DrawMeasurement(); DrawMaterialSelection(); };
+        Viewport.SizeChanged+=(_,_)=>{
+            CancelBrushInput(); CancelPendingPick();
+            if(handleDrag is {} stroke)
+                Dispatcher.InvokeAsync(() => {
+                    if(ReferenceEquals(handleDrag,stroke) && Viewport.RenderSize!=stroke.ViewportSize) CancelTransform();
+                },System.Windows.Threading.DispatcherPriority.Render);
+            else DrawTransformHandles();
+            DrawMeasurement(); DrawSelectionOutline();
+        };
         Deactivated+=(_,_)=>{ CancelBrushInput();CancelPendingPick(); if(handleDrag!=null) CancelTransform(); };
     }
-    private void MoveHandleClick(object sender,RoutedEventArgs e)=>BeginTransformMode(HandleMode.Move);
-    private void RotateHandleClick(object sender,RoutedEventArgs e)=>BeginTransformMode(HandleMode.Rotate);
-    private void ScaleHandleClick(object sender,RoutedEventArgs e)=>BeginTransformMode(HandleMode.Scale);
+    private void MoveHandleClick(object sender,RoutedEventArgs e)=>ChooseTransformMode(HandleMode.Move);
+    private void RotateHandleClick(object sender,RoutedEventArgs e)=>ChooseTransformMode(HandleMode.Rotate);
+    private void ScaleHandleClick(object sender,RoutedEventArgs e)=>ChooseTransformMode(HandleMode.Scale);
     private void TransformTabChanged(object sender,SelectionChangedEventArgs e)
     {
         if(!transformsReady || refreshing || e.Source!=TransformTabs) return;
-        BeginTransformMode(TransformTabs.SelectedIndex switch {0=>HandleMode.Scale,1=>HandleMode.Move,_=>HandleMode.Rotate});
+        ChooseTransformMode(TransformTabs.SelectedIndex switch {0=>HandleMode.Scale,1=>HandleMode.Move,_=>HandleMode.Rotate});
     }
-    private bool BeginTransformMode(HandleMode mode)
+    private bool ChooseTransformMode(HandleMode mode)
     {
-        if(!transformsReady || ModalToolActive || SelectedTarget==null || constructionMode!=null || arrangementMode!=null || operation!=null || handleDrag!=null) return false;
-        if(editor.Snapshot.Preview!=null && handleMode!=mode)
-        { Message("Apply or cancel this preview before switching tools."); return false; }
+        if(!ShowTransformHud || operation!=null || handleDrag!=null) return false;
+        if(handleMode is {} previous && previous!=mode) FinishCancelTransform();
         EnsureTransformFields(mode);
-        if(handleMode!=mode)
+        if(preferredHandleMode!=mode || TransformTabs.SelectedIndex!=TransformFieldIndex(mode))
         {
-            handleMode=mode; transformBaseRevision=editor.Snapshot.Revision; transformEditingGroupId=editor.Snapshot.EditingGroupId; transformDraftChanged=false; transformDraftVersion=0;
+            preferredHandleMode=mode;
             refreshing=true;
             SnapStep.Text=mode switch {HandleMode.Move=>"1",HandleMode.Rotate=>"15",_=>"5"};
-            TransformTabs.SelectedIndex=mode switch {HandleMode.Scale=>0,HandleMode.Move=>1,_=>2};
+            TransformTabs.SelectedIndex=TransformFieldIndex(mode);
             refreshing=false;
         }
         RefreshTransforms(); DrawTransformHandles();
-        Message("Drag a labeled handle or enter values, then preview. Apply accepts; Escape cancels.");
+        Message("Drag a handle and release to apply, or type a value and press Enter.");
         return true;
+    }
+    private void StartTransformDraft(HandleMode mode)
+    {
+        if(handleMode.HasValue) return;
+        var snapshot=editor.Snapshot;
+        handleMode=mode;
+        transformBaseRevision=snapshot.Revision;
+        transformEditingGroupId=snapshot.EditingGroupId;
+        transformDraftChanged=false;
+        transformDraftVersion=0;
     }
     private void TransformDraftChanged(object sender,TextChangedEventArgs e)
     {
-        if(!transformsReady || refreshing || handleMode==null) return;
+        if(refreshing || !ShowTransformHud || !IsDisplayedTransformField(sender) || transformUpdating) return;
+        StartTransformDraft(preferredHandleMode);
         transformDraftVersion++; transformDraftChanged=true; RefreshTransforms();
     }
-    private void TransformSettingsChanged(object sender,RoutedEventArgs e)
+    private bool IsDisplayedTransformField(object? field) => DisplayedTransformMode switch
     {
-        if(!transformsReady || refreshing) return;
-        transformDraftVersion++; transformDraftChanged=true; RefreshTransforms();
-    }
+        HandleMode.Move => field == PositionX || field == PositionY || field == PositionZ,
+        HandleMode.Rotate => field == RotationX || field == RotationY || field == RotationZ,
+        _ => field == SizeX || field == SizeY || field == SizeZ
+    };
     private bool ReadSnap(out double step)
     {
         step=0;
         if(SnapTransforms.IsChecked!=true) return true;
         if(double.TryParse(SnapStep.Text,NumberStyles.Float,CultureInfo.CurrentCulture,out step) && double.IsFinite(step) && step>0) return true;
         Message("Enter a positive, finite snap step, or turn snapping off. Your scene is unchanged.",true);
-        transformDraftChanged=true; RefreshTransforms(); return false;
+        return false;
     }
-    private void PreviewTransformClick(object sender,RoutedEventArgs e)
-    { if(handleMode is {} mode) PreviewNumericTransform(mode); }
+    private void CommitTransformClick(object sender,RoutedEventArgs e)=>CommitNumericTransform(DisplayedTransformMode);
     private void PreviewOnBed()
     {
-        if(!BeginTransformMode(HandleMode.Move) || SelectedTarget is not {} obj) return;
-        var delta=(editor.Snapshot.Preview?.Request as MoveTransform)?.DeltaMillimeters ?? new Vec3();
-        // Exact bed contact may be between snap increments. Keep later handle strokes
-        // on the same unsnapped request rather than silently resnapping its Z offset.
-        refreshing=true; SnapTransforms.IsChecked=false; refreshing=false;
-        QueueTransform(new MoveTransform(obj.Id,delta with {Z=-obj.Bounds.Min.Z}) {ObjectIds=obj.ObjectIds});
+        if(!ChooseTransformMode(HandleMode.Move) || SelectedTarget is not {} obj) return;
+        StartTransformDraft(HandleMode.Move);
+        settling=true;
+        QueueTransform(new MoveTransform(obj.Id,new(0,0,-obj.Bounds.Min.Z)) {ObjectIds=obj.ObjectIds});
     }
-    private void PreviewNumericTransform(HandleMode mode)
+    private void CommitNumericTransform(HandleMode mode)
     {
-        if(!BeginTransformMode(mode) || SelectedTarget is not {} obj || !ReadSnap(out var snap)) return;
+        if(!ChooseTransformMode(mode) || SelectedTarget is not {} obj) return;
+        StartTransformDraft(mode);
         TransformRequest request;
         if(mode==HandleMode.Move)
         {
             if(!ReadVector(PositionX,PositionY,PositionZ,out var center)) return;
-            request=new MoveTransform(obj.Id,center-obj.Bounds.Center,snap);
+            request=new MoveTransform(obj.Id,center-obj.Bounds.Center);
         }
         else if(mode==HandleMode.Rotate)
         {
             if(!ReadVector(RotationX,RotationY,RotationZ,out var degrees)) return;
-            request=new RotateTransform(obj.Id,degrees,snap);
+            if(SelectionOrientation(editor.Snapshot.Scene,obj.ObjectIds) is {} orientation)
+            {
+                // Carry the original precision of angles the user left at their displayed values.
+                var current=orientation.Degrees;
+                double Target(TextBox field,double typed,double previous)=>field.Text==Number(previous) ? previous : typed;
+                degrees=orientation.RotationTo(new(Target(RotationX,degrees.X,current.X),
+                    Target(RotationY,degrees.Y,current.Y),Target(RotationZ,degrees.Z,current.Z)));
+            }
+            request=new RotateTransform(obj.Id,degrees);
         }
         else
         {
@@ -111,8 +145,9 @@ public partial class MainWindow
             var b=obj.Bounds.Size;
             if(b.X<=0 || b.Y<=0 || b.Z<=0)
             { Message("A flat object cannot use three-axis size fields. Use a non-flat axis handle instead.",true); return; }
-            request=new ScaleTransform(obj.Id,new(size.X/b.X,size.Y/b.Y,size.Z/b.Z),snap);
+            request=new ScaleTransform(obj.Id,new(size.X/b.X,size.Y/b.Y,size.Z/b.Z));
         }
+        commitTransformWhenReady=true;
         QueueTransform(request with {ObjectIds=obj.ObjectIds});
     }
     private void QueueTransform(TransformRequest request)
@@ -124,7 +159,7 @@ public partial class MainWindow
     private async Task PumpTransforms()
     {
         using var cancellation=new CancellationTokenSource(); operation=cancellation; RefreshWorkspaceNavigation();
-        CancelOperation.Visibility=Progress.Visibility=Visibility.Visible; RefreshTransforms();
+        RefreshTransforms();
         try
         {
             while(pendingTransform is {} request && !cancelTransformRequested)
@@ -139,16 +174,20 @@ public partial class MainWindow
                     if(pendingTransform==null && !transformDraftChanged) SyncTransformFields((TransformRequest)p.Request);
                 }
                 else transformDraftChanged=true;
-                Message(result.Message,result.Outcome is not (Outcome.Success or Outcome.Cancelled));
-                RefreshTransforms(); RenderScene();
+                if(!result.Succeeded || handleDrag==null && !commitTransformWhenReady)
+                    Message(result.Message,result.Outcome is not (Outcome.Success or Outcome.Cancelled));
+                RefreshTransforms();
+                RefreshViewportModels();
+                DrawSelectionOutline();
+                DrawTransformHandles();
                 if(cancellation.IsCancellationRequested) break;
             }
         }
         finally
         {
-            pendingTransform=null; operation=null; RefreshWorkspaceNavigation(); transformUpdating=false;
-            CancelOperation.Visibility=Progress.Visibility=Visibility.Collapsed;
+            pendingTransform=null; operation=null; transformUpdating=false;
             if(cancelTransformRequested) FinishCancelTransform();
+            else if(commitTransformWhenReady) CompleteDirectTransform();
             else RefreshTransforms();
         }
     }
@@ -160,7 +199,7 @@ public partial class MainWindow
         var angles=request is RotateTransform r ? r.Degrees : new Vec3();
         var mode=handleMode ?? TransformTabs.SelectedIndex switch {0=>HandleMode.Scale,1=>HandleMode.Move,_=>HandleMode.Rotate};
         Array.Fill(transformFieldsDirty,true);
-        WriteTransformFields(mode,b,angles);
+        WriteTransformFields(mode,b,angles,preview.Scene);
         transformFieldsDirty[TransformFieldIndex(mode)]=false;
         refreshing=false;
     }
@@ -179,13 +218,31 @@ public partial class MainWindow
         var wasRefreshing=refreshing; refreshing=true;
         try
         {
-            WriteTransformFields(mode,SelectedTarget?.Bounds,new Vec3());
+            WriteTransformFields(mode,SelectedTarget?.Bounds,new Vec3(),editor.Snapshot.Scene);
             transformFieldsDirty[index]=false;
         }
         finally {refreshing=wasRefreshing;}
     }
-    private void WriteTransformFields(HandleMode mode,Bounds3? bounds,Vec3 angles)
+    private static ObjectOrientation? SelectionOrientation(Scene scene,System.Collections.Immutable.ImmutableArray<Guid> ids) =>
+        ids.Length==1 && scene.Objects.FirstOrDefault(obj=>obj.Id==ids[0]) is {} obj ? ObjectOrientation.From(obj.Transform) : null;
+
+    private void WriteTransformFields(HandleMode mode,Bounds3? bounds,Vec3 angles,Scene scene)
     {
+        if(mode==HandleMode.Rotate)
+        {
+            var orientation=SelectionOrientation(scene,editor.Snapshot.SelectedObjectIds);
+            var absolute=orientation!=null;
+            if(absolute) angles=orientation!.Degrees;
+            RotationUnits.Text=absolute ? "°" : "Δ°";
+            RotationUnits.ToolTip=absolute ? "Object orientation in degrees (Roll, Pitch, Yaw)." :
+                "Relative world rotation in degrees. This selection has no single orientation.";
+            foreach(var (field,axis) in new[]{(RotationX,"Roll (X)"),(RotationY,"Pitch (Y)"),(RotationZ,"Yaw (Z)")})
+            {
+                var label=axis+(absolute ? " orientation in degrees" : " change in degrees");
+                field.ToolTip=label+". Press Enter to apply.";
+                System.Windows.Automation.AutomationProperties.SetName(field,label);
+            }
+        }
         var fields=mode switch {HandleMode.Scale=>new[]{SizeX,SizeY,SizeZ},HandleMode.Move=>new[]{PositionX,PositionY,PositionZ},_=>new[]{RotationX,RotationY,RotationZ}};
         var values=mode switch {HandleMode.Scale=>bounds?.Size,HandleMode.Move=>bounds?.Center,_=>angles};
         fields[0].Text=values is {} x ? Number(x.X) : "";
@@ -196,13 +253,33 @@ public partial class MainWindow
     {
         if(transformUpdating || handleDrag!=null || transformDraftChanged || editor.Snapshot.Preview is not {Request:TransformRequest} p || p.Id!=ownedTransformPreview) return;
         var result=editor.ApplyPreview(p.Id,transformBaseRevision);
-        if(result.Succeeded) { handleMode=null; ownedTransformPreview=null; Refresh(); ViewportSurface.Focus(); }
+        if(result.Succeeded) { ResetTransformDraft(); Refresh(); ViewportSurface.Focus(); }
         Message(result.Message,!result.Succeeded);
+    }
+    private void CompleteDirectTransform()
+    {
+        commitTransformWhenReady=false;
+        if(!transformDraftChanged && editor.Snapshot.Preview is {Request:TransformRequest} p && p.Id==ownedTransformPreview)
+        {
+            var result=editor.ApplyPreview(p.Id,transformBaseRevision);
+            Message(result.Message,!result.Succeeded);
+        }
+        // The last pointer sample may have failed after an earlier successful preview.
+        // Never apply that older candidate or leave it blocking the next gesture.
+        if(ownedTransformPreview is {} id && editor.Snapshot.Preview?.Id==id) editor.DiscardPreview(id);
+        ResetTransformDraft();
+        Refresh();
+        ViewportSurface.Focus();
+    }
+    private void ResetTransformDraft()
+    {
+        handleMode=null; ownedTransformPreview=null; settling=false;
+        cancelTransformRequested=false; commitTransformWhenReady=false; transformDraftChanged=false;
     }
     private void CancelTransformClick(object sender,RoutedEventArgs e)=>CancelTransform();
     private void CancelTransform()
     {
-        handleDrag=null; pendingTransform=null; cancelTransformRequested=true;
+        handleDrag=null; pendingTransform=null; commitTransformWhenReady=false; cancelTransformRequested=true;
         if(ViewportSurface.IsMouseCaptured) ViewportSurface.ReleaseMouseCapture();
         if(transformUpdating) { operation?.Cancel(); Message("Cancelling transform…"); RefreshTransforms(); }
         else FinishCancelTransform();
@@ -210,7 +287,7 @@ public partial class MainWindow
     private void FinishCancelTransform()
     {
         if(editor.Snapshot.Preview is {Request:TransformRequest} p && p.Id==ownedTransformPreview) editor.DiscardPreview(p.Id);
-        handleMode=null; ownedTransformPreview=null; cancelTransformRequested=false; transformDraftChanged=false;
+        ResetTransformDraft();
         Refresh(); ViewportSurface.Focus(); Message("Transform cancelled. Your scene is unchanged.");
     }
     private void RefreshTransforms()
@@ -218,38 +295,31 @@ public partial class MainWindow
         RefreshWorkspaceNavigation();
         if(!transformsReady) return;
         var active=handleMode!=null; var snapshot=editor.Snapshot; var p=snapshot.Preview;
+        var mode=DisplayedTransformMode;
+        TransformHud.Visibility=ShowTransformHud ? Visibility.Visible : Visibility.Collapsed;
         HandleTools.Visibility=SelectedTarget!=null && constructionMode==null && arrangementMode==null ? Visibility.Visible : Visibility.Collapsed;
-        TransformActions.Visibility=active ? Visibility.Visible : Visibility.Collapsed;
-        HandleTitle.Visibility=active ? Visibility.Visible : Visibility.Collapsed;
-        HandleTitle.Text=$"{handleMode} · {SelectedTarget?.Name}";
-        RenameFields.Visibility=EditActions.Visibility=EditActionsDivider.Visibility=ObjectSummary.Visibility=active ? Visibility.Collapsed : Visibility.Visible;
+        var typing=active && !settling && handleDrag==null && !commitTransformWhenReady && transformDraftChanged;
+        TransformDraftActions.Visibility=typing ? Visibility.Visible : Visibility.Collapsed;
+        CommitTransformButton.IsEnabled=typing && !transformUpdating;
+        DiscardTransformButton.IsEnabled=!cancelTransformRequested;
+        SettleActions.Visibility=settling ? Visibility.Visible : Visibility.Collapsed;
+        RenameFields.Visibility=ObjectSummary.Visibility=active ? Visibility.Collapsed : Visibility.Visible;
         ConstructionTools.Visibility=active || constructionMode!=null ? Visibility.Collapsed : Visibility.Visible;
-        EditPanel.Margin=active ? new(0) : new(0,20,0,0);
-        TransformTabs.Margin=active ? new(0) : new(0,16,0,0);
-        HandleSettings.Visibility=active ? Visibility.Visible : Visibility.Collapsed;
-        UniformScale.Visibility=handleMode==HandleMode.Scale ? Visibility.Visible : Visibility.Collapsed;
-        SnapUnit.Text=handleMode switch {HandleMode.Rotate=>"degrees",HandleMode.Scale=>"% change",_=>"mm"};
-        PreviewTransformButton.IsEnabled=active && !transformUpdating && handleDrag==null;
-        ApplyTransformButton.IsEnabled=p?.Request is TransformRequest && p.Id==ownedTransformPreview && !transformDraftChanged && !transformUpdating && handleDrag==null;
-        CancelTransformButton.IsEnabled=!cancelTransformRequested;
-        foreach(var (button,mode) in new[]{(MoveHandleButton,HandleMode.Move),(RotateHandleButton,HandleMode.Rotate),(ScaleHandleButton,HandleMode.Scale)})
+        SnapUnit.Text=mode switch {HandleMode.Rotate=>"degrees",HandleMode.Scale=>"% change",_=>"mm"};
+        SettleConfirmButton.IsEnabled=settling && p?.Request is MoveTransform && p.Id==ownedTransformPreview && !transformDraftChanged && !transformUpdating;
+        foreach(var (button,choice) in new[]{(MoveHandleButton,HandleMode.Move),(RotateHandleButton,HandleMode.Rotate),(ScaleHandleButton,HandleMode.Scale)})
         {
-            button.IsEnabled=!transformUpdating && handleDrag==null && (p==null || mode==handleMode);
-            button.FontWeight=mode==handleMode ? FontWeights.Bold : FontWeights.Normal;
+            button.IsEnabled=ShowTransformHud && !transformUpdating && handleDrag==null;
+            button.FontWeight=choice==mode ? FontWeights.Bold : FontWeights.Normal;
         }
         TransformTabs.IsEnabled=!transformUpdating && handleDrag==null;
-        // Changing tabs would abandon the current candidate; use Apply or Cancel first.
-        foreach(TabItem tab in TransformTabs.Items) tab.IsEnabled=p==null || tab.IsSelected;
         HandleSettings.IsEnabled=!transformUpdating && handleDrag==null;
         if(active)
         {
             Toolbar.IsEnabled=false; ObjectList.IsEnabled=false; ConstructionTools.IsEnabled=false;
             RenameButton.IsEnabled=DuplicateButton.IsEnabled=DeleteButton.IsEnabled=false;
             BedButton.IsEnabled=handleMode==HandleMode.Move && !transformUpdating && handleDrag==null;
-            TransformSummary.Text=p?.Request is TransformRequest ? p.Summary+(transformDraftChanged ? "\nValues changed. Preview again before Apply." : handleMode==HandleMode.Rotate ? "\nApply before rotating on another axis." : "\nRelease leaves a preview. Apply accepts it.")
-                : "Drag X, Y or Z, or enter values and preview. Apply accepts one undoable edit; Escape cancels.";
-            PreviewBanner.Visibility=p?.Request is TransformRequest ? Visibility.Visible : Visibility.Collapsed;
-            PreviewLabel.Text="Transform preview · not yet applied";
+            PreviewBanner.Visibility=Visibility.Collapsed;
         }
         else
         {
@@ -267,30 +337,29 @@ public partial class MainWindow
     private static Vec3 ChangeAxis(Vec3 v,int axis,double value)=>axis==0 ? v with {X=value} : axis==1 ? v with {Y=value} : v with {Z=value};
     private bool BeginHandleDrag(Point point)
     {
-        if(handleMode is not {} mode || SelectedTarget is not {} obj || operation!=null || !ReadSnap(out var snap) || gizmoLayout?.HitTest(point) is not {} hit) return false;
-        if(transformDraftChanged && editor.Snapshot.Preview!=null)
-        { Message("Preview the changed values or cancel before dragging."); return false; }
-        var current=editor.Snapshot.Preview?.Request as TransformRequest;
-        if(current is RotateTransform existing && Enumerable.Range(0,3).Any(axis=>axis!=hit.Axis && Component(existing.Degrees,axis)%360!=0))
-        { Message("Apply or cancel this rotation before dragging a different world axis."); return false; }
-        if(mode==HandleMode.Scale && UniformScale.IsChecked==true && current is ScaleTransform prior &&
-            (prior.Factors.X!=prior.Factors.Y || prior.Factors.Y!=prior.Factors.Z))
-        { Message("Apply or cancel the axis scale before scaling all axes with a handle."); return false; }
+        if(!ShowTransformHud || SelectedTarget is not {} obj || operation!=null || !ReadSnap(out var snap) || gizmoLayout?.HitTest(point) is not {} hit) return false;
+        var mode=DisplayedTransformMode;
+        if(transformDraftChanged)
+        { Message("Press Enter to use the typed value or Escape to discard it before dragging."); return false; }
+        var uniform=hit.Proportional || AspectLock.IsChecked==true;
         TransformRequest initial=mode switch {
-            HandleMode.Move=>new MoveTransform(obj.Id,(current as MoveTransform)?.DeltaMillimeters ?? new(),snap),
-            HandleMode.Rotate=>new RotateTransform(obj.Id,(current as RotateTransform)?.Degrees ?? new(),snap),
-            _=>new ScaleTransform(obj.Id,(current as ScaleTransform)?.Factors ?? new(1,1,1),snap) };
+            HandleMode.Move=>new MoveTransform(obj.Id,new()),
+            HandleMode.Rotate=>new RotateTransform(obj.Id,new()),
+            _=>new ScaleTransform(obj.Id,new(1,1,1)) };
         initial=initial with {ObjectIds=obj.ObjectIds};
         if(mode==HandleMode.Scale && Component(obj.Bounds.Size,hit.Axis)<=0)
         { Message("This axis has zero size. Choose another handle.",true); return false; }
         var angle=hit.ReadAngleDegrees?.Invoke(point);
         if(mode==HandleMode.Rotate && angle==null) return false;
-        handleDrag=new(point,hit,initial,obj.Bounds.Size,UniformScale.IsChecked==true) {LastAngle=angle ?? 0};
-        QueueTransform(initial); return true;
+        StartTransformDraft(mode);
+        handleDrag=new(point,hit,initial,obj.Bounds.Size,uniform,snap,Viewport.RenderSize) {LastAngle=angle ?? 0};
+        RefreshTransforms();
+        return true;
     }
     private void UpdateHandleDrag(Point point)
     {
         if(handleDrag is not {} gesture || cancelTransformRequested) return;
+        gesture.HasValidPointer=false;
         var v=gesture.Hit.PixelsPerUnit; var delta=Vector.Multiply(point-gesture.Start,v)/v.LengthSquared;
         if(gesture.Hit.ReadAngleDegrees is {} readAngle)
         {
@@ -301,57 +370,122 @@ public partial class MainWindow
         }
         if(!double.IsFinite(delta)) return;
         var axis=gesture.Hit.Axis;
+        // Snap only this stroke. Previously typed values and exact bed contact survive
+        // a later drag on another axis.
+        try
+        {
+            delta = gesture.Initial is ScaleTransform
+                ? TransformRequest.SnapIncrement(2 * delta / Component(gesture.BaseSize,axis), gesture.SnapStep / 100)
+                : TransformRequest.SnapIncrement(delta, gesture.SnapStep);
+        }
+        catch (ModelException error) { Message(error.Message,true); return; }
         TransformRequest request=gesture.Initial switch {
             MoveTransform move=>move with {DeltaMillimeters=ChangeAxis(move.DeltaMillimeters,axis,Component(move.DeltaMillimeters,axis)+delta)},
             RotateTransform rotate=>rotate with {Degrees=ChangeAxis(rotate.Degrees,axis,Component(rotate.Degrees,axis)+delta)},
             ScaleTransform scale=>ScaleGesture(scale,gesture,delta),
             _=>throw new InvalidOperationException("Unsupported handle mode.") };
+        gesture.HasValidPointer=true;
         QueueTransform(request);
     }
     private static ScaleTransform ScaleGesture(ScaleTransform scale,HandleGesture gesture,double delta)
     {
         var axis=gesture.Hit.Axis;
-        var next=Component(scale.Factors,axis)+2*delta/Component(gesture.BaseSize,axis);
+        var next=Component(scale.Factors,axis)+delta;
         var factors=gesture.Uniform ? scale.Factors*(next/Component(scale.Factors,axis)) : ChangeAxis(scale.Factors,axis,next);
         return scale with {Factors=factors};
     }
     private void EndHandleDrag()
-    { handleDrag=null; RefreshTransforms(); if(!transformUpdating) Message("Preview ready. Apply accepts it; Escape cancels."); }
+    {
+        if(handleDrag==null) return;
+        if(!handleDrag.HasValidPointer || Viewport.RenderSize!=handleDrag.ViewportSize) { CancelTransform(); return; }
+        handleDrag=null; commitTransformWhenReady=true;
+        if(!transformUpdating) CompleteDirectTransform();
+    }
 
     private void DrawTransformHandles()
     {
-        if(!transformsReady) return;
-        TransformOverlay.Children.Clear(); gizmoLayout=null;
-        if(handleMode is not {} mode || SelectedTarget is not {} accepted || constructionMode!=null || arrangementMode!=null || Viewport.ActualWidth<=0 || Viewport.ActualHeight<=0) return;
-        var b=SelectionBounds(VisibleScene,accepted.ObjectIds);
-        gizmoLayout=TransformGizmo.Layout((System.Windows.Media.Media3D.ProjectionCamera)Viewport.Camera,
-            new(Viewport.ActualWidth,Viewport.ActualHeight),b.Center,mode);
-        if(!gizmoLayout.IsVisible) return;
-        var corners=new Vec3[8];
-        for(var i=0;i<8;i++) corners[i]=new((i&1)==0?b.Min.X:b.Max.X,(i&2)==0?b.Min.Y:b.Max.Y,(i&4)==0?b.Min.Z:b.Max.Z);
-        for(var i=0;i<8;i++) foreach(var axis in new[]{1,2,4}) if((i&axis)==0 && gizmoLayout.Project(corners[i]) is {} a && gizmoLayout.Project(corners[i|axis]) is {} end)
-            TransformOverlay.Children.Add(new Line {X1=a.X,Y1=a.Y,X2=end.X,Y2=end.Y,Stroke=new SolidColorBrush(Color.FromRgb(75,102,120)),StrokeThickness=1,StrokeDashArray=new(){3,3},Opacity=0.65});
-        foreach(var stroke in gizmoLayout.Strokes)
+        if (!transformsReady) return;
+        TransformOverlay.Children.Clear();
+        gizmoLayout = null;
+        if (!ShowTransformHud || SelectedTarget is not {} target ||
+            Viewport.ActualWidth <= 0 || Viewport.ActualHeight <= 0) return;
+
+        var mode = DisplayedTransformMode;
+        var bounds = SelectionBounds(VisibleScene, target.ObjectIds);
+        gizmoLayout = TransformGizmo.Layout((System.Windows.Media.Media3D.ProjectionCamera)Viewport.Camera,
+            new(Viewport.ActualWidth,Viewport.ActualHeight), bounds.Center, mode, bounds,
+            outlineShapes.Values.SelectMany(shape => shape.WorldVertices));
+        if (gizmoLayout.ScaleFrame is {} frame)
         {
-            if(mode==HandleMode.Rotate && editor.Snapshot.Preview?.Request is RotateTransform rotation &&
-                Enumerable.Range(0,3).Any(axis=>axis!=stroke.Axis && Component(rotation.Degrees,axis)%360!=0)) continue;
-            var brush=new SolidColorBrush(AxisColors[stroke.Axis]);
-            TransformOverlay.Children.Add(new Polyline {Stroke=Brushes.White,StrokeThickness=6,Points=new PointCollection(stroke.Points),StrokeLineJoin=PenLineJoin.Round,Opacity=0.95});
-            var line=new Polyline {Stroke=brush,StrokeThickness=3,Points=new PointCollection(stroke.Points),StrokeLineJoin=PenLineJoin.Round};
-            TransformOverlay.Children.Add(line);
-            var tip=stroke.Points[^1];
-            if(mode==HandleMode.Scale)
+            var outline = new Rectangle {Width=frame.Width, Height=frame.Height, Stroke=Brushes.White,
+                StrokeThickness=1, Opacity=.85};
+            Canvas.SetLeft(outline,frame.Left); Canvas.SetTop(outline,frame.Top);
+            TransformOverlay.Children.Add(outline);
+            foreach (var corner in gizmoLayout.ProportionalHandles)
             {
-                var box=new Rectangle {Width=12,Height=12,Fill=brush,Stroke=Brushes.White,StrokeThickness=1};
-                Canvas.SetLeft(box,tip.X-6); Canvas.SetTop(box,tip.Y-6); TransformOverlay.Children.Add(box);
+                var grip = new Rectangle {Width=8, Height=8, RadiusX=1.5, RadiusY=1.5, Fill=Brushes.White,
+                    Stroke=Brushes.DimGray, StrokeThickness=1};
+                Canvas.SetLeft(grip,corner.X-4); Canvas.SetTop(grip,corner.Y-4);
+                TransformOverlay.Children.Add(grip);
             }
-            else if(mode==HandleMode.Move && stroke.Points.Count>=2)
-            {
-                var direction=tip-stroke.Points[0]; direction.Normalize(); var normal=new Vector(-direction.Y,direction.X);
-                TransformOverlay.Children.Add(new Polygon {Fill=brush,Points=new(){tip,tip-direction*13+normal*6,tip-direction*13-normal*6}});
-            }
-            var label=new TextBlock {Text="XYZ"[stroke.Axis].ToString(),FontWeight=FontWeights.Bold,Foreground=SystemParameters.HighContrast?SystemColors.WindowTextBrush:brush,Background=SystemParameters.HighContrast?SystemColors.WindowBrush:Brushes.White,Padding=new(3,1,3,1),FontSize=13};
-            Canvas.SetLeft(label,stroke.LabelPoint.X+5); Canvas.SetTop(label,stroke.LabelPoint.Y-10); TransformOverlay.Children.Add(label);
         }
+        foreach (var stroke in gizmoLayout.Strokes)
+        {
+            var brush = new SolidColorBrush(AxisColors[stroke.Axis]);
+            if (mode == HandleMode.Rotate)
+            {
+                var points = new PointCollection(stroke.Points);
+                TransformOverlay.Children.Add(new Polyline {Points=points, Stroke=Brushes.White, StrokeThickness=2.6, Opacity=.7});
+                TransformOverlay.Children.Add(new Polyline {Points=points, Stroke=brush, StrokeThickness=1.5});
+                // A tangential grip makes each ring discoverable without covering the model with lettering.
+                var middle = stroke.Points.Count*(stroke.Axis*2+1)/8;
+                var tangent = stroke.Points[middle+1]-stroke.Points[middle-1];
+                if (tangent.Length > 0)
+                {
+                    tangent.Normalize();
+                    DrawMoveGrip(stroke.Points[middle]-tangent*10, stroke.Points[middle]+tangent*10, brush);
+                }
+            }
+            else
+            {
+                DrawLinearGrip(stroke.Points,mode,brush);
+                if (stroke.Opposite is {} opposite) DrawLinearGrip(opposite,mode,brush);
+            }
+        }
+    }
+
+    private void DrawLinearGrip(IReadOnlyList<Point> points, HandleMode mode, Brush brush)
+    {
+        var start = points[0];
+        var end = points[^1];
+        if (mode == HandleMode.Move)
+        {
+            DrawMoveGrip(start,end,brush);
+            return;
+        }
+        var direction = end-start;
+        direction.Normalize();
+        DrawArrowhead(end,direction,brush);
+        DrawArrowhead(end-direction*9,direction,brush);
+    }
+
+    private void DrawMoveGrip(Point start, Point end, Brush brush)
+    {
+        var direction = end-start;
+        direction.Normalize();
+        TransformOverlay.Children.Add(new Line {X1=start.X, Y1=start.Y, X2=end.X, Y2=end.Y,
+            Stroke=Brushes.White, StrokeThickness=4});
+        TransformOverlay.Children.Add(new Line {X1=start.X, Y1=start.Y, X2=end.X, Y2=end.Y,
+            Stroke=brush, StrokeThickness=2.7});
+        DrawArrowhead(start,-direction,brush);
+        DrawArrowhead(end,direction,brush);
+    }
+
+    private void DrawArrowhead(Point tip, Vector direction, Brush brush)
+    {
+        var normal = new Vector(-direction.Y,direction.X);
+        TransformOverlay.Children.Add(new Polygon {Fill=brush, Stroke=Brushes.White, StrokeThickness=.75,
+            StrokeLineJoin=PenLineJoin.Round,
+            Points=new(){tip,tip-direction*8+normal*4.5,tip-direction*8-normal*4.5}});
     }
 }

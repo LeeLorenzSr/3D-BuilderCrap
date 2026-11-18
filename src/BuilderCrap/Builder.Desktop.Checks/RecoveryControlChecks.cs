@@ -73,7 +73,7 @@ internal static partial class Program
         SameAccepted(before);var checkpointFile=RecoveryFiles(directory).Single();
         using(var locked=new FileStream(checkpointFile,FileMode.Open,FileAccess.Read,FileShare.Read)){await (Task)Invoke("CheckpointRecovery")!;SameAccepted(before);Assert(Named<TextBlock>("RecoveryWarning").Visibility==Visibility.Visible,"Failed checkpoint did not show persistent nonfatal warning.");Capture("recovery-warning-minimum",1040,680);}
         await (Task)Invoke("CheckpointRecovery")!;Assert(Named<TextBlock>("RecoveryWarning").Visibility==Visibility.Collapsed&&Named<TextBox>("ObjectName").Text=="Unaccepted typed name","Successful retry did not clear warning or preserved draft.");
-        await Workspace(1);Click(Named<Button>("MoveHandleButton"));var prior=Hash(checkpointFile);await (Task)Invoke("CheckpointRecovery")!;Assert(Hash(checkpointFile)==prior,"Cadence ran during an active tool.");Click(Named<Button>("CancelTransformButton"));
+        await Workspace(1);Click(Named<Button>("MoveHandleButton"));Named<TextBox>("PositionX").Text="12.375";var prior=Hash(checkpointFile);await (Task)Invoke("CheckpointRecovery")!;Assert(Hash(checkpointFile)==prior,"Cadence ran during an active tool.");Click(Named<Button>("DiscardTransformButton"));
         Pass("The actual DispatcherTimer checkpoints accepted work without history/path/draft changes; busy actions preserve drafts, write failures warn nonmodally, retries clear warning and active tools defer cadence");
 
         directory=Path.Combine(output,"restore-store");var recovered=await MakeRecovery(directory,"Assembly recovery",true,true);await RecoveryWindow(directory);

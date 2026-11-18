@@ -21,34 +21,37 @@ public partial class MainWindow
     private readonly Dictionary<Guid,ObjectVisual> objectVisuals=[];
     private readonly Dictionary<Color,Material> objectMaterials=[];
     private readonly ConditionalWeakTable<MeshGeometry3D,MeshGeometry3D> smoothDisplayCache=new();
-    private readonly Model3DGroup sceneModels=new(), gridModels=new(), cutPlaneModels=new(), wireframeModels=new(), shadowModels=new(), reflectionModels=new();
+    private readonly Model3DGroup sceneModels=new(), cutPlaneModels=new(), wireframeModels=new(), shadowModels=new(), reflectionModels=new();
     private ShadowSurface[] shadowSources=[];
     private ReflectionSurface[] reflectionSources=[];
     private readonly List<Model3D> desiredModels=[];
-    private Bounds3? gridBounds;
-    private bool gridWasEmpty;
+    private System.Windows.Point? floorCenter;
+
     private bool viewportModelsInitialized;
 
     private void RefreshViewportModels()
     {
         if(!viewportModelsInitialized)
         {
-            sceneModels.Children.Add(new AmbientLight(Color.FromRgb(72,80,90)));
-            sceneModels.Children.Add(new DirectionalLight(Colors.White,DisplayShadow.LightDirection));
-            sceneModels.Children.Add(new DirectionalLight(Color.FromRgb(75,85,100),new(.6,-.5,-.3)));
+            // Neutral, asymmetric lighting keeps adjacent bright faces distinct without tinting the material.
+            sceneModels.Children.Add(new AmbientLight(Color.FromRgb(55,55,55)));
+            sceneModels.Children.Add(new DirectionalLight(Color.FromRgb(178,178,178),DisplayShadow.LightDirection));
+            sceneModels.Children.Add(new DirectionalLight(Color.FromRgb(70,70,70),new(.3,1,-.25)));
             Viewport.Children.Add(new ModelVisual3D {Content=sceneModels});
             viewportModelsInitialized=true;
         }
         var snapshot=editor.Snapshot;
         var settings=editor.Presentation.Snapshot.Settings;
         SyncViewControls();
-        var selectedIds=snapshot.SelectedObjectIds.ToHashSet();
+
         var scene=DisplayedScene(snapshot);
+        var selectedIds=(ReferenceEquals(scene,snapshot.Scene) ? snapshot.SelectedObjectIds : snapshot.Preview?.SelectedObjectIds ?? snapshot.SelectedObjectIds).ToHashSet();
         var visibleObjects=CurrentSeparatePreview(snapshot)!=null&&separateInspectId!=null&&SeparateShowOriginal.IsChecked!=true
             ?scene.Objects.Where(o=>SeparateDisplayVisible(o,snapshot)).ToImmutableArray():scene.Objects;
         var visibleIds=visibleObjects.Select(o=>o.Id).ToHashSet();
         foreach(var id in objectVisuals.Keys.Where(id=>!visibleIds.Contains(id)).ToArray()) objectVisuals.Remove(id);
         var noRetainedObjectModels=objectVisuals.Count==0 && visibleObjects.Length>0;
+        var outlineSources = new List<OutlineSource>();
         desiredModels.Clear();
         wireframeModels.Children.Clear();
         for(var i=0;i<3;i++) desiredModels.Add(sceneModels.Children[i]);
@@ -59,13 +62,14 @@ public partial class MainWindow
         hitObjects.Clear();
         foreach(var obj in visibleObjects)
         {
-            var color=DisplayAlpha(ObjectDisplayColor(obj,snapshot,selectedIds),settings.XRay);
+            var color=DisplayAlpha(ObjectDisplayColor(obj,snapshot),settings.XRay);
             // Cutaway vertices are already in world space and are inspection-only. The ordinary
             // retained geometry/transform path is restored even when the Core mesh itself is unchanged.
             var cutaway=HollowDisplayMesh(obj,snapshot);
             var flatGeometry=cutaway??DisplayMesh(obj.Mesh);
             var geometry=settings.Shading==ShadingMode.Smooth?SmoothDisplayMesh(flatGeometry):flatGeometry;
             var transform=cutaway==null?obj.Transform:Affine.Identity;
+            if (selectedIds.Contains(obj.Id)) outlineSources.Add(new(obj.Id,flatGeometry,transform));
             if(settings.Shadows)shadows.Add(new(flatGeometry,transform));
             var faces=settings.Colors&&cutaway==null&&!HasMaterialRoleColor(obj,snapshot)?obj.TriangleMaterials:ImmutableDictionary<int,SurfaceMaterial>.Empty;
             if(!objectVisuals.TryGetValue(obj.Id,out var visual))
@@ -110,15 +114,12 @@ public partial class MainWindow
             }
             if(settings.Wireframe)AddWireframe(geometry,transform,scene.Bounds);
         }
+        SetOutlineSources(outlineSources);
+        desiredModels.Add(selectionOutlines);
         RefreshReflectionModels(reflections);
         RefreshShadowModels(shadows);
-        var acceptedBounds=snapshot.Scene.Bounds;
-        if(gridBounds!=acceptedBounds || gridWasEmpty!=snapshot.Scene.Objects.IsEmpty)
-        {
-            gridModels.Children.Clear(); AddGrid(gridModels,snapshot.Scene); gridBounds=acceptedBounds; gridWasEmpty=snapshot.Scene.Objects.IsEmpty;
-        }
         cutPlaneModels.Children.Clear(); AddCutPlane(cutPlaneModels); AddExtrudeDownPlane(cutPlaneModels);
-        if(settings.Grid)desiredModels.Add(gridModels);
+        FloorLayer.Visibility=settings.Grid ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
         if(settings.Wireframe)desiredModels.Add(wireframeModels);
         desiredModels.Add(cutPlaneModels);
         DisplayNotice.Visibility=!settings.Colors&&(materialsActive||scene.Objects.Any(o=>o.Material!=null||!o.TriangleMaterials.IsEmpty))?System.Windows.Visibility.Visible:System.Windows.Visibility.Collapsed;

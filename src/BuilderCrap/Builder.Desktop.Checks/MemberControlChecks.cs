@@ -54,18 +54,15 @@ internal static partial class Program
         Pass("Member scope entry, visible context, independent rows, scope-local Select all and viewport confinement");
 
         var beforeMove=editor.Snapshot;
-        Click(Named<Button>("MoveHandleButton"));Named<TextBox>("PositionX").Text="15"; Click("Preview move"); await Idle();
-        SameAccepted(beforeMove);
-        var preview=editor.Snapshot.Preview!;
-        Assert(preview?.Request is MoveTransform {MemberGroupId:var moveGroup} && moveGroup==group.Id,"Member transform did not carry scope.");
-        Near(preview!.Scene.Objects.Single(o=>o.Id==ids[0]).Bounds.Center.X,15);
-        Assert(ReferenceEquals(preview.Scene.Objects.Single(o=>o.Id==ids[1]),beforeMove.Scene.Objects.Single(o=>o.Id==ids[1])) &&
-            ReferenceEquals(preview.Scene.Objects.Single(o=>o.Id==outsider.Id),beforeMove.Scene.Objects.Single(o=>o.Id==outsider.Id)),"Transform changed an unedited sibling/outsider.");
-        Assert(!Named<Button>("DoneEditingButton").IsEnabled,"Done can escape a transform preview.");
-        MemberScopeVisible(); TransformFooterVisible(); Capture("41-member-move-preview",1040,680);
-        Click(Named<Button>("CancelTransformButton")); SameAccepted(beforeMove);
-        Click(Named<Button>("MoveHandleButton"));Named<TextBox>("PositionX").Text="15"; Click("Preview move"); await Idle(); Click(Named<Button>("ApplyTransformButton"));
+        Click(Named<Button>("MoveHandleButton"));Named<TextBox>("PositionX").Text="15";SameAccepted(beforeMove);
+        Assert(!Named<Button>("DoneEditingButton").IsEnabled,"Done abandoned a member position draft.");
+        MemberScopeVisible();Reachable("DiscardTransformButton");Capture("41-member-move-draft",1040,680);
+        Click(Named<Button>("DiscardTransformButton"));SameAccepted(beforeMove);
+        Named<TextBox>("PositionX").Text="15";Click(Named<Button>("CommitTransformButton"));await Idle();
         var moved=editor.Snapshot;
+        Near(moved.Scene.Objects.Single(o=>o.Id==ids[0]).Bounds.Center.X,15);
+        Assert(moved.EditingGroupId==group.Id&&ReferenceEquals(moved.Scene.Objects.Single(o=>o.Id==ids[1]),beforeMove.Scene.Objects.Single(o=>o.Id==ids[1]))&&
+            ReferenceEquals(moved.Scene.Objects.Single(o=>o.Id==outsider.Id),beforeMove.Scene.Objects.Single(o=>o.Id==outsider.Id)),"Member position changed a sibling, outsider or group scope.");
         Click(Named<Button>("DoneEditingButton"));
         Assert(editor.Snapshot.EditingGroupId==null && editor.Snapshot.SelectedObjectIds.SequenceEqual(ids),"Done did not restore whole-group selection.");
         Click(Named<Button>("UndoButton"));
@@ -118,17 +115,11 @@ internal static partial class Program
 
         ChooseTreeRoot(ids[0]);
         var beforeDraft=editor.Snapshot;
-        Click(Named<Button>("MoveHandleButton"));Named<TextBox>("PositionX").Text="20"; Click("Preview move");
-        // Simulate an adapter/settings update before the awaited worker continuation.
-        Named<TextBox>("PositionX").Text="123"; await Idle();
-        Assert(Named<TextBox>("PositionX").Text=="123" && !Named<Button>("ApplyTransformButton").IsEnabled,"Completed older work overwrote a newer draft or enabled stale Apply.");
-        Near(editor.Snapshot.Preview!.Scene.Objects.Single(o=>o.Id==ids[0]).Bounds.Center.X,20);
-        SameAccepted(beforeDraft);
-        Click(Named<Button>("PreviewTransformButton")); await Idle();
-        Assert(Named<Button>("ApplyTransformButton").IsEnabled,"Fresh draft cannot produce a current member preview.");
-        Near(editor.Snapshot.Preview!.Scene.Objects.Single(o=>o.Id==ids[0]).Bounds.Center.X,123);
-        Click(Named<Button>("CancelTransformButton")); SameAccepted(beforeDraft);
-        Pass("An asynchronous member transform cannot overwrite newer field drafts or enable stale acceptance");
+        Click(Named<Button>("MoveHandleButton"));Named<TextBox>("PositionX").Text="20";
+        Named<TextBox>("PositionX").Text="123";await Idle();SameAccepted(beforeDraft);
+        Assert(Named<TextBox>("PositionX").Text=="123" && Named<Button>("CommitTransformButton").IsEnabled,"Latest member draft was lost.");
+        Click(Named<Button>("DiscardTransformButton"));SameAccepted(beforeDraft);
+        Pass("Member numeric drafts retain the latest input until Apply or Cancel");
 
         ChooseTreeRoot(ids[0]);
         var beforeSplit=editor.Snapshot;

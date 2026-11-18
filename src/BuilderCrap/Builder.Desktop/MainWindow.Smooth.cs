@@ -114,7 +114,7 @@ public partial class MainWindow
         PreviewSmoothButton.IsEnabled=operation==null&&!smoothCancelRequested;
         ApplySmoothButton.IsEnabled=candidate!=null&&!smoothDraftChanged&&operation==null&&!smoothCancelRequested&&snapshot.Revision==smoothBaseRevision;
         CancelSmoothButton.IsEnabled=!smoothCancelRequested;
-        Toolbar.IsEnabled=ObjectList.IsEnabled=false;ObjectsOverview.Visibility=EditPanel.Visibility=ConstructionTools.Visibility=InspectionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
+        Toolbar.IsEnabled=ObjectList.IsEnabled=false;ObjectsOverview.Visibility=ConstructionTools.Visibility=InspectionTools.Visibility=HandleTools.Visibility=Visibility.Collapsed;
         PreviewBanner.Visibility=candidate==null?Visibility.Collapsed:Visibility.Visible;
         PreviewLabel.Text=SmoothShowOriginal.IsChecked==true?"Original · smooth not yet applied":"Smooth result preview · not yet applied";EmptyHint.Visibility=Visibility.Collapsed;
     }

@@ -69,9 +69,20 @@ internal static partial class Program
         Assert(ViewGroup("sceneModels").Children.IndexOf(Reflections())<ViewGroup("sceneModels").Children.IndexOf(SeparateDrawn().Keys.First()),"Reflections render after real geometry.");
         Pass("Painted batches retain exact RGB with fixed reflection alpha through Smooth/colors/X-ray; cache invalidates actual batches and reflection resources never affect Core picking or document state");
 
-        await OpenReflection();ViewToggle("ViewReflections",true);before=editor.Snapshot;var original=Reflections().Bounds;await Workspace(1);Click(Named<Button>("MoveHandleButton"));Named<TextBox>("PositionZ").Text="40";Click(Named<Button>("PreviewTransformButton"));await Idle();var candidate=editor.Snapshot.Preview!;Assert(Reflections().Bounds!=original,"Move preview did not update reflected geometry.");Named<TextBox>("PositionY").Text="14.25";await Workspace(4);camera=CameraPose();ViewToggle("ViewReflections",false);ViewToggle("ViewReflections",true);Assert(ReferenceEquals(editor.Snapshot.Preview,candidate)&&Named<TextBox>("PositionY").Text=="14.25"&&!Named<Button>("ApplyTransformButton").IsEnabled&&CameraPose()==camera,"Reflection toggle lost dirty candidate/draft or camera.");TransformFooterVisible();Click(Named<Button>("CancelTransformButton"));SameAccepted(before);Assert(Reflections().Bounds==original,"Cancel retained candidate reflection.");
-        await Workspace(1);Click(Named<Button>("MoveHandleButton"));Named<TextBox>("PositionZ").Text="40";Click(Named<Button>("PreviewTransformButton"));await Idle();candidate=editor.Snapshot.Preview!;Click(Named<Button>("ApplyTransformButton"));Assert(ReferenceEquals(editor.Snapshot.Scene,candidate.Scene),"Apply lost exact candidate under reflections.");Click(Named<Button>("UndoButton"));Assert(ReferenceEquals(editor.Snapshot.Scene,before.Scene)&&Reflections().Bounds==original,"Undo lost accepted reflection.");
+        await OpenReflection();ViewToggle("ViewReflections",true);
+        before=editor.Snapshot;
+        var acceptedBounds=Reflections().Bounds;
+        await Workspace(1);Click(Named<Button>("BedButton"));await Idle();var candidate=editor.Snapshot.Preview!;
+        Assert(Reflections().Bounds!=acceptedBounds,"Settle preview did not update the displayed geometry.");
+        await Workspace(4);ViewToggle("ViewReflections",false);ViewToggle("ViewReflections",true);
+        Assert(ReferenceEquals(editor.Snapshot.Preview,candidate),"Changing View replaced the Settle preview.");
+        Click(Named<Button>("SettleCancelButton"));SameAccepted(before);
+        Assert(Reflections().Bounds==acceptedBounds,"Cancel did not restore the display.");
+        await Workspace(1);Click(Named<Button>("BedButton"));await Idle();candidate=editor.Snapshot.Preview!;
+        Click(Named<Button>("SettleConfirmButton"));Assert(ReferenceEquals(editor.Snapshot.Scene,candidate.Scene),"Settle lost the displayed candidate.");
+        Click(Named<Button>("UndoButton"));
+        Assert(ReferenceEquals(editor.Snapshot.Scene,before.Scene)&&Reflections().Bounds==acceptedBounds,"Undo did not restore the original display.");
         await Workspace(2);Click(Named<Button>("HollowButton"));await PreviewHollow();var cut=ReflectedModels().SelectMany(m=>((MeshGeometry3D)m.Geometry).Positions).Max(p=>p.X);Named<CheckBox>("HollowCutaway").IsChecked=false;await HollowViewIdle();Assert(cut<ReflectedModels().SelectMany(m=>((MeshGeometry3D)m.Geometry).Positions).Max(p=>p.X),"Reflection ignored actual Hollow cutaway visibility.");Click(Named<Button>("CancelHollowButton"));
-        Pass("Real move preview/dirty draft/Cancel/ApplyUndo update reflections without accepted edits; Hollow reflection follows actual cutaway rather than fabricating the hidden full mesh");
+        Pass("Settle, Cancel and Undo update reflections with the displayed geometry; Hollow reflection follows actual cutaway rather than fabricating the hidden full mesh");
     }
 }

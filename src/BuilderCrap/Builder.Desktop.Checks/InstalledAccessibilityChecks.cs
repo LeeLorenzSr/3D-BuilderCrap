@@ -19,12 +19,12 @@ internal static partial class Program
     }
     private static async Task V1AccessibleChrome()
     {
-        await V1MovePreview();var before=editor.Snapshot;
+        await Open("cube-20mm.stl");await Workspace(1);Click(Named<Button>("BedButton"));await Idle();var before=editor.Snapshot;
         var ink=(Brush)window.FindResource("Ink");var background=(Brush)window.FindResource("ChromeFFFFFF");
         Assert(BrushColor(window.Foreground)==BrushColor(ink),"Derived MainWindow does not apply the shared Window foreground style.");
         Assert(Contrast(ink,background)>=4.5,"Application text has insufficient contrast against its panel.");
         Assert(Contrast((Brush)window.FindResource("MutedInk"),background)>=4.5,"Help/summary text lost contrast.");
-        var apply=Named<Button>("ApplyTransformButton");
+        var apply=Named<Button>("SettleConfirmButton");
         Assert(Contrast(apply.Foreground,apply.Background)>=4.5,"Primary action text lost contrast.");
         Assert(Named<TextBlock>("Status") is AccessibleStatusText,"Operation status does not publish notification events.");
         var status=Named<TextBlock>("Status");status.Text="Preview ready. Apply or cancel.";
@@ -38,7 +38,7 @@ internal static partial class Program
         Assert(ReferenceEquals(before.Scene,editor.Snapshot.Scene)&&ReferenceEquals(before.Preview,editor.Snapshot.Preview)&&before.Revision==editor.Snapshot.Revision,"Accessible presentation changed the held preview/accepted scene.");
         observations.Add(new{test="Installed accessibility chrome",contrastTheme=SystemParameters.HighContrast,ink=BrushColor(ink).ToString(),background=BrushColor(background).ToString(),contrast=Contrast(ink,background)});
         Capture(SystemParameters.HighContrast?"accessibility-contrast-preview":"accessibility-normal-preview",1040,720);
-        Click(Named<Button>("CancelTransformButton"));
+        Click(Named<Button>("SettleCancelButton"));
         Pass("Actual Windows palette gives readable panel/summary/primary-action pairs; derived Window style and announcing status peer retain accepted scene and held preview");
     }
     private static Task V1AccessibleDialogs()

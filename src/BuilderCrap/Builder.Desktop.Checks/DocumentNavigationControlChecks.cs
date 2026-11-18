@@ -41,7 +41,7 @@ internal static partial class Program
     private static async Task ChooseDocument()=>await (Task)Invoke("ChooseModel",false)!;
     private static async Task ClickRecent(MenuItem item){item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent,item));await Idle();}
     private static string NavigationInput(string name)=>Path.GetFullPath(Path.Combine(root,".local/evidence/document-navigation-20261021/inputs",name));
-    private static async Task NewDocument(){Click(Named<Button>("NewButton"));await Idle();}
+    private static async Task NewDocument(){await ClickRecent(Named<MenuItem>("NewButton"));}
     private static void CaptureSaveDialog(EditorSnapshot snapshot,string name)
     {
         var dialog=new SaveChangesDialog(snapshot,"opening another model");var content=(FrameworkElement)dialog.Content;
@@ -55,12 +55,16 @@ internal static partial class Program
     private static async Task RunDocumentNavigationControls()
     {
         await Open("cube-20mm.stl");Ok(editor.Execute(new RenameObject(editor.Snapshot.SelectedObjectId!.Value,"Navigation draft")));Refresh();var before=editor.Snapshot;
-        Layout(1040,680);foreach(var name in new[]{"NewButton","RecentFilesMenu","SaveButton","SaveAsButton","ExportButton","UndoButton","RedoButton"})Reachable(name);Capture("document-file-strip-minimum",1040,680);CaptureSaveDialog(before,"save-discard-cancel-dialog");
+        Layout(1040,680);foreach(var name in new[]{"FileMenu","SaveButton","UndoButton","RedoButton"})Reachable(name);
+        var menu=Named<MenuItem>("FileMenu");
+        foreach(var name in new[]{"NewButton","OpenButton","RecentFilesMenu","SaveAsButton","ExportButton"})
+            Assert(menu.Items.Contains(Named<MenuItem>(name)),"File menu command missing: "+name);
+        Capture("document-file-strip-minimum",1040,680);CaptureSaveDialog(before,"save-discard-cancel-dialog");
         Named<TextBox>("ObjectName").Text="Unapplied rename draft";navigationDialogs.Decision=DirtyDecision.Cancel;await NewDocument();SameAccepted(before);Assert(Named<TextBox>("ObjectName").Text=="Unapplied rename draft","Prompt Cancel erased idle rename draft.");
         navigationDialogs.Decision=DirtyDecision.Save;navigationDialogs.SavePath=Path.Combine(output,"saved-before-new.3mf");await NewDocument();
         Assert(editor.Snapshot.Scene.Objects.IsEmpty&&!editor.Snapshot.IsDirty&&editor.Snapshot.FilePath==null&&!editor.Snapshot.CanUndo&&!editor.Snapshot.CanRedo&&File.Exists(navigationDialogs.SavePath),"Save+New did not leave a clean empty document/reset history.");Assert(RecentEntries().Any(i=>((RecentFile)i.Tag).Path==navigationDialogs.SavePath),"Committed save was not recorded.");
         Ok(editor.Execute(new AddCube()));Refresh();navigationDialogs.Decision=DirtyDecision.Discard;await NewDocument();Assert(editor.Snapshot.Scene.Objects.IsEmpty&&!editor.Snapshot.IsDirty,"Discard+New failed.");
-        Pass("New and Recent fit the minimum persistent strip; explicit wrapped Save/Discard/Cancel defaults safely, and Save+New/Discard+New reset clean document/path/history through Core");
+        Pass("File menu and history fit the minimum window; explicit wrapped Save/Discard/Cancel defaults safely, and Save+New/Discard+New reset clean document/path/history through Core");
 
         navigationDialogs.OpenPath=NavigationInput("colored-cube.3mf");await ChooseDocument();Assert(editor.Snapshot.Scene.Objects.Length==1&&RecentEntries().Any(i=>((RecentFile)i.Tag).Path==navigationDialogs.OpenPath),"Successful Open was not recorded.");
         navigationDialogs.OpenPath=NavigationInput("cube-20mm.stl");navigationDialogs.Unit=ModelUnit.Inches;await ChooseDocument();Near(editor.Snapshot.Scene.Bounds.Size.X,508,.001);var prompts=navigationDialogs.UnitPrompts;
@@ -82,7 +86,7 @@ internal static partial class Program
         before=editor.Snapshot;navigationDialogs.Decision=DirtyDecision.Cancel;Assert(!await (Task<bool>)Invoke("RequestCloseDocument")!,"Close Cancel approved disposal.");SameAccepted(before);navigationDialogs.Decision=DirtyDecision.Discard;Assert(await (Task<bool>)Invoke("RequestCloseDocument")!,"Close Discard did not return typed readiness.");SameAccepted(before);
         Ok(editor.Execute(new RenameObject(editor.Snapshot.SelectedObjectId!.Value,"After close approval")));Refresh();before=editor.Snapshot;navigationDialogs.Decision=DirtyDecision.Cancel;var closing=new CancelEventArgs();typeof(MainWindow).GetMethod("OnClosing",PrivateInstance,null,[typeof(object),typeof(CancelEventArgs)],null)!.Invoke(window,[window,closing]);await Idle();Assert(closing.Cancel,"Old close approval bypassed a newer revision.");SameAccepted(before);
         Ok(await editor.DeleteSelectionAsync(editor.Snapshot.SelectedObjectIds));Refresh();before=editor.Snapshot;CaptureSaveDialog(before,"empty-dirty-save-dialog");navigationDialogs.Decision=DirtyDecision.Save;navigationDialogs.SavePath=Path.Combine(output,"must-not-save-empty.3mf");await NewDocument();SameAccepted(before);Assert(!File.Exists(navigationDialogs.SavePath)&&Named<TextBlock>("Status").Text.Contains("no objects",StringComparison.OrdinalIgnoreCase),"Empty dirty Save emitted invalid file or lost Undo guidance.");
-        navigationDialogs.Decision=DirtyDecision.Discard;await NewDocument();Ok(editor.Execute(new AddCube()));Refresh();await Workspace(1);Click(Named<Button>("MoveHandleButton"));before=editor.Snapshot;var calls=navigationDialogs.DirtyPrompts;Invoke("NewClick",window,new RoutedEventArgs());await Idle();SameAccepted(before);Assert(navigationDialogs.DirtyPrompts==calls&&Named<FrameworkElement>("TransformActions").Visibility==Visibility.Visible,"New bypassed active-tool guard.");Click(Named<Button>("CancelTransformButton"));
+        navigationDialogs.Decision=DirtyDecision.Discard;await NewDocument();Ok(editor.Execute(new AddCube()));Refresh();await Workspace(1);Click(Named<Button>("MoveHandleButton"));ArrayNumber("PositionX",43);before=editor.Snapshot;var calls=navigationDialogs.DirtyPrompts;Invoke("NewClick",window,new RoutedEventArgs());await Idle();SameAccepted(before);Assert(navigationDialogs.DirtyPrompts==calls&&Named<FrameworkElement>("TransformDraftActions").Visibility==Visibility.Visible,"New bypassed active-tool guard.");Click(Named<Button>("DiscardTransformButton"));
         Pass("Close approval is revision-bound, Cancel preserves the scene, dirty-empty Save retains Undo without an invalid 3MF, and active tools cannot be abandoned by New");
 
         var storePath=Path.Combine(output,"adapter-recents.json");var store=new JsonRecentFileStore(storePath);var paths=Enumerable.Range(0,12).Select(i=>new RecentFile(Path.Combine(output,"folder_"+i,"same_name.stl"),ModelUnit.Centimeters)).ToArray();store.Save(new[]{paths[0],paths[0] with{Path=paths[0].Path.ToUpperInvariant()}}.Concat(paths).ToArray());var loaded=store.Load();Assert(loaded.Count==10&&loaded.Select(e=>e.Path).Distinct(StringComparer.OrdinalIgnoreCase).Count()==10&&loaded.All(e=>e.ModelUnit==ModelUnit.Centimeters),"Recent adapter cap/canonical dedup/unit persistence incorrect.");

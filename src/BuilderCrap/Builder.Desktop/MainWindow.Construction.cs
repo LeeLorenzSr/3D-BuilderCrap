@@ -66,7 +66,6 @@ public partial class MainWindow
         ConstructionTools.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
         ConstructionPanel.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
         ConstructionActions.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
-        EditPanel.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
         SplitFields.Visibility = constructionMode == ConstructionMode.Split ? Visibility.Visible : Visibility.Collapsed;
         BooleanFields.Visibility = constructionMode == ConstructionMode.Boolean ? Visibility.Visible : Visibility.Collapsed;
         RepairFields.Visibility = constructionMode == ConstructionMode.Repair ? Visibility.Visible : Visibility.Collapsed;
@@ -149,7 +148,7 @@ public partial class MainWindow
         else Message("Tool closed. Your scene is unchanged.");
         constructionMode = null; constructionEditingGroupId=null; Refresh(); ViewportSurface.Focus();
     }
-    private Color ConstructionColor(SceneObject obj,EditorSnapshot snapshot,IReadOnlySet<Guid> selectedIds)
+    private Color ConstructionColor(SceneObject obj,EditorSnapshot snapshot)
     {
         if(snapshot.Preview is {} p && p.ResultObjectIds.Contains(obj.Id))
         {
@@ -165,7 +164,7 @@ public partial class MainWindow
             if(OperandA.SelectedValue is Guid a && obj.Id == a) return PositiveColor;
             if(constructionMode == ConstructionMode.Boolean && OperandB.SelectedValue is Guid b && obj.Id == b) return NegativeColor;
         }
-        return constructionMode == null && selectedIds.Contains(obj.Id) ? PositiveColor : Color.FromRgb(153,170,185);
+        return DisplayRgb(SurfaceMaterial.Neutral.Color);
     }
     private void AddCutPlane(Model3DGroup group)
     {
