@@ -1,10 +1,12 @@
 # 3D BuilderCrap
 
+<img src="src/BuilderCrap/Builder.Desktop/Assets/Icons/app-mark.svg" align="right" width="64" alt="">
+
 An approachable Windows mesh editor for 3D printing, inspired by the useful workflows of Microsoft 3D Builder. Written in C#/.NET with WPF, a shared editing core, and a native geometry worker. It is an independent implementation and does not require Microsoft's application, REA, or an LLM.
 
 Current source version: **1.0.4**. The original application code, tools and artwork in this repository are available under the [MIT license](LICENSE). Dependencies retain their own [licenses and notices](THIRD-PARTY-NOTICES.md).
 
-![3D BuilderCrap application mark](src/BuilderCrap/Builder.Desktop/Assets/Icons/app-mark.svg)
+[![A teal spur gear and an amber pinion on the 10 mm checkerboard, with the Move handles and exact position fields visible.](docs/screenshots/gear-workspace.jpg)](docs/screenshots/gear-workspace.jpg)
 
 ## What it does
 
@@ -34,7 +36,11 @@ The native build fetches a pinned Manifold commit. NuGet restores the managed de
 
 ## Prepare a model
 
-Open a model and choose its source units. Select a part, choose a tool, inspect **Preview**, then **Apply** or **Cancel**. **Undo / Redo** changes accepted edits. **Save** writes native 3MF; **Export** writes a slicer/interchange copy. **Help / F1** opens the bundled offline guide.
+Open a model and choose its source units when prompted. Select a part and drag a Move, Rotate or Scale handle. Release to accept the edit, or enter an exact value and press Enter. For tools such as Split and Surface color, inspect the preview and choose **Apply** or **Cancel**. **Undo / Redo** changes accepted edits. **Save** writes native 3MF. **Export** writes a copy for a slicer or another editor. **Help / F1** opens the bundled offline guide.
+
+| Split a part | Paint a surface |
+| --- | --- |
+| [![A vertical cutting plane divides the spur gear into two preview colors, with both sides kept.](docs/screenshots/split-preview.jpg)](docs/screenshots/split-preview.jpg) | [![The Surface color tool previews Chalk on the gear’s top face while the hub and sides stay teal.](docs/screenshots/surface-paint.jpg)](docs/screenshots/surface-paint.jpg) |
 
 Generate a small original sample corpus with `python scripts/generate_fixtures.py`; then open `fixtures/generated/cube-20mm.stl` in millimeters. [Checks and fixtures](docs/verification.md).
 
